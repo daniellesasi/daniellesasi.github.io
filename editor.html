@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Editor — root site</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:system-ui,sans-serif; background:#5a5a5a; color:#fff; height:100vh; overflow:hidden; user-select:none; }
+
+/* HEADER */
+#hdr { height:50px; background:#4a4a4a; border-bottom:1px solid #3a3a3a; display:flex; align-items:center; gap:10px; padding:0 20px; flex-shrink:0; }
+#hdr h1 { font-size:.68rem; letter-spacing:3px; text-transform:uppercase; color:#888; flex:1; }
+.inp { background:#555; border:1px solid #444; color:#fff; padding:6px 12px; border-radius:5px; font-size:.76rem; width:250px; }
+.inp::placeholder { color:#888; }
+.btn { background:#666; color:#ddd; border:1px solid #555; padding:6px 14px; border-radius:5px; font-size:.76rem; cursor:pointer; }
+.btn:hover { background:#777; color:#fff; }
+.btn.w { background:#fff; color:#000; border-color:#fff; font-weight:700; }
+.btn.w:hover { background:#ddd; }
+.btn.g { background:#00bb44; color:#000; border-color:#00bb44; font-weight:700; }
+.btn.g:hover { background:#009933; }
+.btn:disabled { opacity:.2; pointer-events:none; }
+/* Shows the repo this editor pushes to — text is set from REPO at init so it can never
+   disagree with the real push target. Guards against editing the wrong site when more
+   than one copy of the editor is open. */
+/* Live count of galleries visible on the site. The site is designed around 12; going
+   over doesn't break anything server-side but the numbered side-menu starts to clip
+   on short viewports, so flag it rather than silently allow it. */
+#active-count { font-size:.7rem; letter-spacing:1px; color:#aaa; margin-left:14px; align-self:center; }
+#active-count.over { color:#ffb84d; font-weight:bold; }
+#repo-badge { font-size:.66rem; letter-spacing:1px; color:#0b0b0b; background:#ffb84d; border-radius:3px; padding:3px 8px; font-weight:bold; white-space:nowrap; }
+#repo-badge.preview { background:#666; color:#ddd; }
+#st { font-size:.72rem; color:#aaa; }
+#st.ok { color:#00ee66; }
+#st.er { color:#f66; }
+#st.warn { color:#ffb84d; font-weight:bold; }
+
+/* GRID */
+#app { height:calc(100vh - 50px); display:flex; flex-direction:column; }
+#grid-view { flex:1; overflow-y:auto; padding:20px 24px 40px; }
+.tabs { display:flex; gap:8px; margin-bottom:18px; }
+.tab { padding:5px 16px; background:#555; border:1px solid #666; border-radius:20px; cursor:pointer; font-size:.74rem; color:#aaa; }
+.tab.active { background:#fff; color:#000; border-color:#fff; }
+.sg { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+.sc { background:#4a4a4a; border:1px solid #555; border-radius:9px; overflow:hidden; cursor:grab; transition:border-color .2s,transform .15s,opacity .15s; position:relative; }
+.sc:hover { border-color:#888; transform:scale(1.015); }
+.sc.dragging { opacity:.3; cursor:grabbing; transform:none; }
+.sc.drag-over { border-color:#00cc66; border-style:dashed; transform:none; }
+.sc.hidden-sec { opacity:.45; }
+.sc .sec-hide-btn { padding:3px 9px; background:#555; border:1px solid #666; border-radius:4px; font-size:.6rem; color:#bbb; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+.sc .sec-hide-btn:hover { border-color:#aaa; color:#fff; }
+.sc.hidden-sec .sec-hide-btn { background:#4a3000; border-color:#6a4a00; color:#ffd060; }
+.sc .order-badge { position:absolute; top:7px; left:8px; background:rgba(0,0,0,.65); padding:2px 7px; border-radius:9px; font-size:.6rem; color:#fff; z-index:2; pointer-events:none; }
+.sc .prev { height:150px; background:#3a3a3a; position:relative; overflow:hidden; }
+.sc .prev img,.sc .prev video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+.sc .prev .badge { position:absolute; bottom:7px; right:8px; background:rgba(0,0,0,.6); padding:2px 8px; border-radius:9px; font-size:.6rem; color:#ccc; }
+.sc .foot { padding:9px 13px; display:flex; justify-content:space-between; align-items:center; }
+.sc .lbl { font-size:.68rem; letter-spacing:2px; text-transform:uppercase; color:#bbb; }
+.sc .hint { font-size:.64rem; color:#888; }
+.sc:hover .hint { color:#ddd; }
+
+/* CANVAS EDITOR */
+#ce { position:fixed; inset:0; background:#5a5a5a; z-index:100; display:none; flex-direction:column; }
+#ce.open { display:flex; }
+#ce-hdr { height:50px; background:#4a4a4a; border-bottom:1px solid #3a3a3a; display:flex; align-items:center; gap:12px; padding:0 18px; flex-shrink:0; }
+.back { font-size:1rem; cursor:pointer; color:#aaa; padding:4px 8px; border-radius:4px; }
+.back:hover { color:#fff; background:#666; }
+#ce-title { font-size:.68rem; letter-spacing:3px; text-transform:uppercase; color:#bbb; flex:1; }
+#slide-lbl { font-size:.7rem; color:#aaa; }
+.sep { width:1px; height:24px; background:#666; }
+
+/* MAIN CANVAS */
+#ce-body { flex:1; display:flex; overflow:hidden; }
+#layer-panel { width:180px; background:#4a4a4a; border-right:1px solid #3a3a3a; display:flex; flex-direction:column; flex-shrink:0; }
+#layer-panel h2 { font-size:.62rem; letter-spacing:2px; text-transform:uppercase; color:#aaa; padding:12px 14px 8px; border-bottom:1px solid #3a3a3a; }
+#layer-list { flex:1; overflow-y:auto; padding:6px; }
+.layer-item { display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:5px; cursor:pointer; font-size:.72rem; color:#bbb; margin-bottom:2px; }
+.layer-item:hover { background:#555; color:#fff; }
+.layer-item.sel { background:#2a3a2a; color:#fff; border:1px solid #00bb44; }
+.layer-item .li-thumb { width:32px; height:22px; border-radius:3px; overflow:hidden; flex-shrink:0; background:#666; }
+.layer-item .li-thumb img,.layer-item .li-thumb video { width:100%; height:100%; object-fit:cover; }
+.layer-item .li-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.66rem; }
+.layer-item .li-del { font-size:.7rem; color:#888; cursor:pointer; padding:2px 4px; border-radius:3px; }
+.layer-item .li-del:hover { color:#f55; background:#3a1515; }
+#add-layer-btn { margin:8px 8px 2px; padding:7px; background:#555; border:1px dashed #777; border-radius:5px; text-align:center; cursor:pointer; font-size:.68rem; color:#bbb; }
+#add-layer-btn:hover { border-color:#aaa; color:#fff; }
+#add-text-btn { margin:0 8px 8px; padding:7px; background:#3a3a5a; border:1px dashed #5555aa; border-radius:5px; text-align:center; cursor:pointer; font-size:.68rem; color:#aab; }
+#add-text-btn:hover { border-color:#aac; color:#fff; }
+#text-props { display:none; border-top:1px solid #3a3a3a; padding:10px 10px 6px; flex-direction:column; gap:7px; }
+#text-props.visible { display:flex; }
+#media-props { display:none; border-top:1px solid #3a3a3a; padding:10px 10px 6px; flex-direction:column; gap:7px; }
+#media-props.visible { display:flex; }
+#text-props label { font-size:.6rem; color:#999; letter-spacing:1px; text-transform:uppercase; margin-bottom:1px; }
+#text-props textarea { background:#3a3a3a; border:1px solid #555; border-radius:4px; color:#fff; font-size:.72rem; padding:5px 7px; resize:vertical; min-height:44px; font-family:inherit; outline:none; width:100%; box-sizing:border-box; }
+#text-props textarea:focus { border-color:#00cc66; }
+#text-props input[type=range] { width:100%; accent-color:#00cc66; }
+#text-props input[type=color] { width:100%; height:26px; border:none; border-radius:4px; cursor:pointer; padding:0; background:none; }
+#text-props select { width:100%; background:#3a3a3a; border:1px solid #555; border-radius:4px; color:#fff; font-size:.68rem; padding:4px 6px; outline:none; }
+.tp-row { display:flex; gap:6px; align-items:center; }
+.tp-row label { flex:1; }
+.tp-tog { padding:3px 8px; background:#555; border:none; color:#aaa; border-radius:4px; cursor:pointer; font-size:.65rem; }
+.tp-tog.on { background:#00cc66; color:#000; }
+/* Black / white text swatches. Each previews its own result — a black "A" on white and
+   a white "A" on black — so the choice is readable without a colour dialog. The green
+   ring marks which one the selected layer currently matches. */
+.tp-swatch { width:30px; height:26px; border:1px solid #777; border-radius:4px; cursor:pointer; font-size:.8rem; font-weight:bold; line-height:1; padding:0; flex:0 0 auto; background:#fff; color:#000; }
+.tp-swatch.light { background:#111; color:#fff; }
+.tp-swatch.on { border-color:#00cc66; box-shadow:0 0 0 2px #00cc66; }
+
+#canvas-wrap { flex:1; position:relative; overflow:hidden; background:#666; }
+#canvas { position:absolute; background:#000; overflow:hidden; cursor:default; }
+#grid-overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+#grid-overlay line { stroke:rgba(255,255,255,0.12); stroke-width:1; vector-effect:non-scaling-stroke; }
+#canvas.bg-white #grid-overlay line { stroke:rgba(0,0,0,0.10); }
+#canvas.move-cursor { cursor:move; }
+#canvas.crosshair { cursor:crosshair; }
+#canvas.bg-white { background:#fff; }
+
+/* SELECTION OVERLAY */
+#sel-box { position:absolute; pointer-events:none; z-index:1000; display:none; }
+#sel-box .sel-border { position:absolute; inset:0; border:2px solid #00cc66; border-radius:1px; }
+.handle { position:absolute; width:10px; height:10px; background:#fff; border:1.5px solid #00cc66; border-radius:2px; pointer-events:all; cursor:pointer; z-index:1001; }
+.handle.nw { top:-5px; left:-5px; cursor:nw-resize; }
+.handle.ne { top:-5px; right:-5px; cursor:ne-resize; }
+.handle.se { bottom:-5px; right:-5px; cursor:se-resize; }
+.handle.sw { bottom:-5px; left:-5px; cursor:sw-resize; }
+.rot-handle { position:absolute; width:14px; height:14px; background:#00cc66; border-radius:50%; top:-28px; left:50%; transform:translateX(-50%); pointer-events:all; cursor:grab; z-index:1001; }
+.rot-line { position:absolute; width:1px; height:20px; background:#00cc66; top:-20px; left:50%; transform:translateX(-50%); }
+.sel-drag { position:absolute; inset:0; pointer-events:all; cursor:move; }
+
+/* FILMSTRIP */
+#fs-wrap { height:108px; background:#4a4a4a; border-top:1px solid #3a3a3a; display:flex; align-items:center; flex-shrink:0; overflow:hidden; }
+#fs { display:flex; gap:8px; padding:10px 14px; overflow-x:auto; height:100%; align-items:center; flex:1; }
+#fs::-webkit-scrollbar { height:3px; }
+#fs::-webkit-scrollbar-thumb { background:#777; border-radius:2px; }
+.th { width:120px; height:80px; flex-shrink:0; border-radius:6px; overflow:hidden; cursor:grab; border:2px solid #666; position:relative; background:#555; transition:border-color .15s, opacity .15s; }
+.th:hover { border-color:#999; }
+.th.act { border-color:#fff; }
+.th.drag-over { border-color:#00cc66; border-style:dashed; }
+.th.dragging { opacity:.3; cursor:grabbing; }
+.th.draft { opacity:.4; }
+.th .th-draft { position:absolute; bottom:3px; right:3px; background:rgba(0,0,0,.75); border:none; color:#fff; width:18px; height:18px; border-radius:3px; font-size:.6rem; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:2; }
+.th:hover .th-draft { display:flex; }
+.th.draft .th-draft { display:flex; background:rgba(200,120,0,.85); }
+.th .th-draft:hover { background:rgba(200,120,0,.85); }
+.th canvas,.th img,.th video { width:100%; height:100%; object-fit:cover; pointer-events:none; display:block; }
+.th .th-del { position:absolute; top:3px; right:3px; background:rgba(0,0,0,.75); border:none; color:#fff; width:18px; height:18px; border-radius:3px; font-size:.6rem; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:2; }
+.th:hover .th-del { display:flex; }
+.th .th-del:hover { background:rgba(200,30,30,.8); }
+.th-add { width:120px; height:80px; flex-shrink:0; border-radius:6px; border:2px dashed #777; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#aaa; font-size:1.2rem; }
+.th-add:hover { border-color:#bbb; color:#fff; }
+
+.warn { background:#4a3a00; border:1px solid #6a5000; color:#ffd060; border-radius:6px; padding:9px 14px; font-size:.72rem; margin-bottom:14px; }
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <h1>Root Site Editor</h1>
+  <span id="repo-badge"></span>
+  <input class="inp" id="tok" type="password" placeholder="GitHub Personal Access Token">
+  <button class="btn w" onclick="load()">Load</button>
+  <button class="btn g" id="saveBtn" onclick="saveAll()" disabled>Push to GitHub</button>
+  <button class="btn" onclick="snapAllText()" title="Snap every text layer in every section to the standard title/body/tools slots">Align all text</button>
+  <button class="btn" onclick="addToolsCaptionToAll()" title="Add a 'tools used' caption to the first slide of every gallery">+ Tools caption</button>
+  <span id="st">Enter token and click Load</span>
+</div>
+
+<div id="app">
+  <div id="grid-view">
+    <div class="tabs"><div class="tab active">Galleries</div><span id="active-count"></span></div>
+    <div class="warn">Files over 25 MB can't be uploaded via GitHub API — compress large videos first.</div>
+    <div class="sg" id="sg0"></div>
+    <div class="sg" id="sg1" style="display:none"></div>
+  </div>
+
+  <div id="ce">
+    <div id="ce-hdr">
+      <span class="back" onclick="closeEditor()">←</span>
+      <span id="ce-title">Gallery</span>
+      <span id="slide-lbl"></span>
+      <span class="sep"></span>
+      <button class="btn" id="bgToggle" onclick="toggleCanvasBg()" title="Toggle canvas background">⬛ Black</button>
+      <button class="btn" id="draftToggle" onclick="toggleDraft()" title="Toggle draft">👁 Live</button>
+      <button class="btn" onclick="resetSel()">Reset layer</button>
+      <button class="btn" onclick="addSlide()">+ Slide</button>
+    </div>
+    <div id="ce-body">
+      <div id="layer-panel">
+        <h2>Layers</h2>
+        <div id="layer-list"></div>
+        <div id="add-layer-btn" onclick="pickFiles()">+ Add image / video</div>
+        <div id="add-text-btn" onclick="addTextLayer()">T + Add text box</div>
+        <div id="text-props">
+          <label>Text</label>
+          <textarea id="tp-text" oninput="updateTextProp('text',this.value)" rows="2"></textarea>
+          <label>Font size — <span id="tp-fs-val">4</span>vw</label>
+          <input type="range" id="tp-fs" min="1" max="15" step="0.5" value="4" oninput="$('tp-fs-val').textContent=this.value;updateTextProp('fontSize',+this.value)">
+          <label>Font</label>
+          <select id="tp-font" onchange="updateTextProp('fontFamily',this.value)">
+            <option value="Anton">Anton</option>
+            <option value="sans-serif">Sans-serif</option>
+            <option value="serif">Serif</option>
+            <option value="monospace">Monospace</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Arial">Arial</option>
+          </select>
+          <label>Color</label>
+          <div class="tp-row">
+            <button class="tp-swatch" id="tp-black" onclick="setTextColor('#000000')" title="Black text — works on locked layers; the lock only stops dragging">A</button>
+            <button class="tp-swatch light" id="tp-white" onclick="setTextColor('#ffffff')" title="White text — works on locked layers; the lock only stops dragging">A</button>
+            <input type="color" id="tp-color" value="#ffffff" oninput="updateTextProp('color',this.value);syncColorSwatches(this.value)">
+          </div>
+          <div class="tp-row">
+            <button class="tp-tog" id="tp-bold" onclick="toggleTextProp('bold','tp-bold')">B</button>
+            <button class="tp-tog" id="tp-italic" onclick="toggleTextProp('italic','tp-italic')">I</button>
+            <button class="tp-tog" id="tp-al" onclick="cycleAlign()">≡</button>
+          </div>
+          <label>Snap to standard slot</label>
+          <div class="tp-row">
+            <button class="tp-tog" onclick="snapText('title')" title="Snap to title slot (top-left, large bold)">Title</button>
+            <button class="tp-tog" onclick="snapText('body')" title="Snap to body slot (left column, small)">Body</button>
+            <button class="tp-tog" onclick="snapText('tools')" title="Snap to tools/credits caption slot (bottom-left, small italic)">Tools</button>
+            <button class="tp-tog" id="tp-lock" onclick="toggleLock()" title="Lock position — stops dragging/resizing/rotating only. Text, colour, size and font stay editable while locked.">🔒</button>
+          </div>
+        </div>
+        <div id="media-props">
+          <label>Corner radius — <span id="mp-br-val">0</span>px</label>
+          <input type="range" id="mp-br" min="0" max="200" step="2" value="0" oninput="$('mp-br-val').textContent=this.value;updateMediaProp('borderRadius',+this.value)">
+          <div class="tp-row">
+            <button class="tp-tog" id="mp-shadow" onclick="toggleShadow()" title="Soft drop shadow (auto: black on white bg, white on black bg)">Shadow</button>
+            <button class="tp-tog" id="mp-lock" onclick="toggleLock()" title="Lock so it can't be dragged">🔒</button>
+          </div>
+          <div id="mp-format-row" style="display:none">
+            <label>File format</label>
+            <div class="tp-row">
+              <button class="tp-tog" id="mp-fmt-png" onclick="setMediaFormat('png')">PNG</button>
+              <button class="tp-tog" id="mp-fmt-jpg" onclick="setMediaFormat('jpg')">JPEG</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="canvas-wrap">
+        <div id="canvas">
+          <svg id="grid-overlay" viewBox="0 0 9 7" preserveAspectRatio="none">
+            <line x1="1" y1="0" x2="1" y2="7"/><line x1="2" y1="0" x2="2" y2="7"/><line x1="3" y1="0" x2="3" y2="7"/><line x1="4" y1="0" x2="4" y2="7"/><line x1="5" y1="0" x2="5" y2="7"/><line x1="6" y1="0" x2="6" y2="7"/><line x1="7" y1="0" x2="7" y2="7"/><line x1="8" y1="0" x2="8" y2="7"/>
+            <line x1="0" y1="1" x2="9" y2="1"/><line x1="0" y1="2" x2="9" y2="2"/><line x1="0" y1="3" x2="9" y2="3"/><line x1="0" y1="4" x2="9" y2="4"/><line x1="0" y1="5" x2="9" y2="5"/><line x1="0" y1="6" x2="9" y2="6"/>
+          </svg>
+          <div id="sel-box">
+            <div class="rot-line"></div>
+            <div class="rot-handle" id="rot-h"></div>
+            <div class="sel-border"></div>
+            <div class="sel-drag" id="sel-drag"></div>
+            <div class="handle nw" data-h="nw"></div>
+            <div class="handle ne" data-h="ne"></div>
+            <div class="handle se" data-h="se"></div>
+            <div class="handle sw" data-h="sw"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="fs-wrap"><div id="fs"></div></div>
+  </div>
+</div>
+
+<script>
+console.log('🔧 Editor v2026-05-05-source-safe loaded');
+const REPO='daniellesasi/daniellesasi.github.io', BRANCH='main';
+// This site is the user site at the domain root, and it does NOT hold the media —
+// index.html points every image/video at the Sett repo, so those srcs are already
+// absolute. BASE therefore only ever applies to media uploaded into THIS repo, which
+// lands at the root and so needs no prefix at all.
+const LIVE_HOST='daniellesasi.github.io';
+const BASE = '';
+// Absolute (Sett-hosted) srcs must pass through untouched; bare names belong to this
+// repo. Prefixing an absolute URL with BASE would yield https://…/https://… and 404.
+const mediaURL = s => !s ? '' : (/^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/.test(s) ? s : BASE + s);
+// NB = how many gallery slots exist in the repo (the "backend" count). Slots beyond the
+// 12 shown on the site sit in the HTML as <section ... class="project-section draft">
+// and are toggled with each card's Hide/Show button. The nav numbers only visible ones,
+// so the live site keeps its 12-gallery shape however many slots exist here.
+// Raising NB alone is not enough — each new id needs an empty <section> scaffold in
+// index.html, because buildHTML only ever replaces sections that already exist.
+const PORTS=['a1','a2'], NB=24, VISIBLE_TARGET=12;
+
+// Basenames (no extension) that have both a .png and a .jpg version uploaded to the repo.
+// PNGs with real transparency were intentionally left PNG-only (JPEG can't hold alpha),
+// so only opaque images get a format choice here. Grows at runtime as new opaque PNGs are added.
+const JPEG_TWINS = new Set(["a1b10c1","a1b10c10","a1b10c11","a1b10c12","a1b10c13","a1b10c14","a1b10c2","a1b10c3","a1b10c4","a1b10c5","a1b10c6","a1b10c7","a1b10c8","a1b10c9","a1b11c1","a1b11c2","a1b11c3","a1b11c4","a1b11c5","a1b11c6","a1b12c1","a1b12c2","a1b12c3","a1b12c4","a1b12c5","a1b12c6","a1b12c7","a1b1c10","a1b1c11","a1b1c12","a1b1c17","a1b1c19","a1b1c6","a1b1c8","a1b2c17","a1b2c18","a1b2c20","a1b3c14","a1b3c17","a1b3c5","a1b3c6","a1b4c11","a1b4c12","a1b4c14","a1b4c17","a1b4c19","a1b4c20","a1b4c3","a1b4c37","a1b4c38","a1b4c8","a1b4c9","a1b5c1","a1b5c19","a1b5c2","a1b5c20","a1b5c21","a1b5c22","a1b6c10","a1b6c4","a1b6c6","a1b6c8","a1b7c10","a1b7c12","a1b7c13","a1b7c15","a1b7c17","a1b7c18","a1b7c21","a1b7c22","a1b7c23","a1b7c24","a1b7c25","a1b7c6","a1b7c7","a1b8c11","a1b8c12","a1b8c13","a1b9c1","a1b9c10","a1b9c11","a1b9c12","a1b9c13","a1b9c14","a1b9c15","a1b9c2","a1b9c3","a1b9c4","a1b9c5","a1b9c6","a1b9c7","a1b9c8","a1b9c9"]);
+const baseName = f => (f||'').replace(/^.*\//,'').replace(/\.[^.]+$/,'');
+const extOf = f => ((f||'').match(/\.([^.]+)$/)||[,''])[1].toLowerCase();
+
+// When opened from a local server or file:// (i.e. not the real GitHub Pages host),
+// "saving" is a no-op — lets you click around (including the format toggle) without
+// pushing anything to the live repo. Loading is still a real (read-only) GitHub fetch.
+const PREVIEW_MODE = location.hostname!==LIVE_HOST;
+
+let token='', idxSha='', idxHTML='';
+// sections[id] = [ { layers:[ {id,type,src,preview,b64,filename,x,y,w,h,rot,z,fit} ] } ]
+let sections={};
+let sectionOrder={}; // { portIdx: ['a1b1','a1b2',...] }
+let sectionHidden={}; // { 'a1b9': true, ... } — section-level draft/hidden state
+let activeSec=null, activeSlide=0, selId=null;
+let drag=null; // {type:'move'|'resize'|'rotate', handle, sx,sy, ox,oy,ow,oh,orot}
+let autoSaveTimer=null;
+let unsaved=false;  // true when there are pending changes not yet pushed
+let isSaving=false; // mutex to prevent concurrent saves
+
+function queuePush(){
+  if(!tok()){st('No token — enter token and click Load','er'); return;}
+  if(!idxSha){st('Not loaded — click Load first','er'); return;}
+  unsaved=true;
+  clearTimeout(autoSaveTimer);
+  st('● Unsaved — saving in 4s…','warn');
+  autoSaveTimer=setTimeout(()=>saveAll(), 4000);
+}
+
+// Warn before unload if there are unsaved changes
+window.addEventListener('beforeunload', e => {
+  if (unsaved) { e.preventDefault(); e.returnValue=''; return ''; }
+});
+
+// If the tab gets hidden (tab switch / minimize), flush the pending save now
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && unsaved && autoSaveTimer) {
+    clearTimeout(autoSaveTimer); autoSaveTimer=null;
+    saveAll();  // fire-and-forget; the request is queued before tab is suspended
+  }
+});
+
+const $ = id => document.getElementById(id);
+const tok = () => { token=$('tok').value.trim()||localStorage.getItem('gh_t')||''; $('tok').value=token; if(token)localStorage.setItem('gh_t',token); return token; };
+const st = (m,c='') => { $('st').textContent=m; $('st').className=c; };
+const gh = (p,o={}) => { const {headers:xh={},...rest}=o; return fetch(`https://api.github.com/repos/${REPO}/contents/${p}`,{...rest,cache:'no-store',headers:{Authorization:`Bearer ${tok()}`,Accept:'application/vnd.github.v3+json','If-None-Match':'',...xh}}); };
+
+// ── LOAD ─────────────────────────────────────────────────────────────────────
+async function load(){
+  if(!tok()){st('Enter token','er');return;}
+  st('Loading…');
+  try{
+    const r=await gh('index.html'); if(!r.ok)throw new Error(r.status===401?'Invalid token — check repo scope':r.status===404?'Repo not found (404) — check your token has repo scope':`GitHub API error ${r.status}`);
+    const d=await r.json(); idxSha=d.sha;
+    idxHTML=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    parseHTML(); renderGrid(); $('saveBtn').disabled=false; st('Loaded ✓','ok');
+  }catch(e){st('Error: '+e.message,'er');}
+}
+
+function parseHTML(){
+  sections={};
+  sectionOrder={};
+  sectionHidden={};
+  const doc=new DOMParser().parseFromString(idxHTML,'text/html');
+  PORTS.forEach((port,pi)=>{
+    // Read actual gallery order from the HTML (preserves user's reorder)
+    const portId = pi===0 ? 'port1' : 'port2';
+    const wrapper = doc.getElementById(portId);
+    const orderInHtml = wrapper
+      ? Array.from(wrapper.querySelectorAll('main .project-section')).map(s=>s.id).filter(Boolean)
+      : [];
+
+    for(let b=1;b<=NB;b++){
+      const id=`${port}b${b}`, sec=doc.getElementById(id), slides=[];
+      sectionHidden[id] = sec ? sec.classList.contains('draft') : false;
+      if(sec){
+        // New structure: .canvas-frame elements
+        sec.querySelectorAll('.canvas-frame').forEach(frame=>{
+          const layers=[];
+          const bg=frame.classList.contains('bg-white')?'#fff':'#000';
+          const isDraft=frame.classList.contains('draft');
+          frame.querySelectorAll('img,video').forEach((el,li)=>{
+            const s=el.getAttribute('style')||'';
+            // -? matters: layers are deliberately bled off-canvas with negative offsets.
+            // Without it the match fails, the fallback silently wins, and the next push
+            // rewrites the layer to 0% — moving artwork on the live site.
+            const lx=parseFloat((s.match(/left:(-?[\d.]+)%/)||[,0])[1]);
+            const ly=parseFloat((s.match(/top:(-?[\d.]+)%/)||[,0])[1]);
+            const lw=parseFloat((s.match(/width:([\d.]+)%/)||[,100])[1]);
+            const lh=parseFloat((s.match(/height:([\d.]+)%/)||[,100])[1]);
+            const lr=parseFloat((s.match(/rotate\(([-\d.]+)deg\)/)||[,0])[1]);
+            const lz=parseInt((s.match(/z-index:([\d]+)/)||[,li+1])[1]);
+            const locked = el.hasAttribute('data-locked');
+            const br = parseFloat((s.match(/border-radius:([\d.]+)px/)||[,0])[1]) || 0;
+            const shadow = /box-shadow:[^;]+/.test(s);
+            // Read src from element directly (legacy) OR from <source> children (new mobile-aware format)
+            let elSrc = el.getAttribute('src') || '';
+            if (!elSrc && el.tagName.toLowerCase() === 'video') {
+              const sources = el.querySelectorAll('source');
+              const desktop = Array.from(sources).find(s => !s.hasAttribute('media')) || sources[sources.length - 1];
+              if (desktop) elSrc = desktop.getAttribute('src') || '';
+            }
+            layers.push({id:`l${Date.now()+li}`,type:el.tagName.toLowerCase(),src:elSrc,x:lx,y:ly,w:lw,h:lh,rot:lr,z:lz,fit:'cover',...(br&&{borderRadius:br}),...(shadow&&{shadow:true}),...(locked&&{locked:true})});
+          });
+          frame.querySelectorAll('.txt-layer').forEach((el,li)=>{
+            const s=el.getAttribute('style')||'';
+            const lx=parseFloat((s.match(/left:(-?[\d.]+)%/)||[,10])[1]);
+            const ly=parseFloat((s.match(/top:(-?[\d.]+)%/)||[,35])[1]);
+            const lw=parseFloat((s.match(/width:([\d.]+)%/)||[,80])[1]);
+            const lh=parseFloat((s.match(/height:([\d.]+)%/)||[,30])[1]);
+            const lr=parseFloat((s.match(/rotate\(([-\d.]+)deg\)/)||[,0])[1]);
+            const lz=parseInt((s.match(/z-index:(\d+)/)||[,li+1])[1]);
+            const fontSize=parseFloat((s.match(/font-size:([\d.]+)vw/)||[,4])[1]);
+            const color=(s.match(/(?:^|;)\s*color:([^;]+)/)||[,'#ffffff'])[1].trim();
+            const align=(s.match(/text-align:([^;]+)/)||[,'left'])[1].trim();
+            const bold=/font-weight:\s*bold/.test(s);
+            const italic=/font-style:\s*italic/.test(s);
+            const fontFamily=(s.match(/font-family:'([^']+)'/)|| s.match(/font-family:([^;,'"]+)/)||[,'Anton'])[1].trim();
+            const locked = el.hasAttribute('data-locked');
+            layers.push({id:`l${Date.now()+li+500}`,type:'text',text:el.textContent,x:lx,y:ly,w:lw,h:lh,rot:lr,z:lz,fontSize,fontFamily,color,align,bold,italic,...(locked&&{locked:true})});
+          });
+          slides.push({layers,bg,...(isDraft&&{draft:true})});
+        });
+        // Legacy: direct img/video
+        if(!slides.length){
+          sec.querySelectorAll('.horizontal-gallery > img, .horizontal-gallery > video').forEach(el=>{
+            slides.push({layers:[{id:`l${Date.now()+Math.random()}`,type:el.tagName.toLowerCase(),src:el.getAttribute('src')||'',x:0,y:0,w:100,h:100,rot:0,z:1,fit:'cover'}]});
+          });
+        }
+      }
+      if(!slides.length) slides.push({layers:[]});
+      sections[id]=slides;
+    }
+    // Use HTML order if present (filtered to known IDs), otherwise default order
+    const defaultOrder = Array.from({length:NB},(_,i)=>`${port}b${i+1}`);
+    const known = new Set(defaultOrder);
+    const fromHtml = orderInHtml.filter(id => known.has(id));
+    const seenSet = new Set(fromHtml);
+    const missing = defaultOrder.filter(id => !seenSet.has(id));
+    sectionOrder[pi] = fromHtml.length ? [...fromHtml, ...missing] : defaultOrder;
+    console.log(`[parseHTML] ${portId} order from HTML:`, sectionOrder[pi].join(','));
+  });
+}
+
+// ── GRID ─────────────────────────────────────────────────────────────────────
+let gridDragFrom=null, gridDragPortIdx=null;
+
+function renderGrid(){
+  [0,1].forEach(pi=>{
+    const g=$(`sg${pi}`); g.innerHTML='';
+    const order=sectionOrder[pi]||[];
+    order.forEach((id,pos)=>{
+      const slides=sections[id]||[];
+      const first=slides[0]?.layers?.find(l=>l.src||l.preview);
+      const isHidden = !!sectionHidden[id];
+      const el=document.createElement('div'); el.className='sc'+(isHidden?' hidden-sec':''); el.dataset.id=id;
+      const src=first?(first.preview||mediaURL(first.src)):'';
+      const tag=first?.type||'img';
+      const prev=src?`<${tag} src="${src}" ${tag==='video'?'muted autoplay loop playsinline':''}></${tag}>` :'';
+      const count=slides.reduce((a,s)=>a+(s.layers?.length||0),0);
+      const draftCount=slides.filter(s=>s.draft).length;
+      const draftNote=draftCount?` · ${draftCount} draft`:'';
+      const origB=id.match(/b(\d+)/)[1];
+      el.innerHTML=`<span class="order-badge">${pos+1}</span><div class="prev">${prev}<span class="badge">${slides.length} slide${slides.length!==1?'s':''}${draftNote} · ${count} layer${count!==1?'s':''}</span></div><div class="foot"><span class="lbl">Gallery ${origB}</span><button class="sec-hide-btn" onclick="toggleSectionHidden(event,'${id}')">${isHidden?'Show':'Hide'}</button></div>`;
+      // click to edit (only if not dragging)
+      el.onclick=e=>{ if(!e.defaultPrevented) openEditor(id); };
+      // drag-to-reorder
+      el.draggable=true;
+      el.addEventListener('dragstart',e=>{
+        gridDragFrom=pos; gridDragPortIdx=pi;
+        el.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setData('text/plain',pos);
+      });
+      el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+      el.addEventListener('dragover',e=>{ if(gridDragPortIdx!==pi)return; e.preventDefault(); el.classList.add('drag-over'); });
+      el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+      el.addEventListener('drop',e=>{
+        e.preventDefault(); e.stopPropagation(); el.classList.remove('drag-over');
+        if(gridDragPortIdx!==pi) return;
+        const from=gridDragFrom, to=pos;
+        if(from===to)return;
+        const arr=sectionOrder[pi];
+        arr.splice(to,0,arr.splice(from,1)[0]);
+        renderGrid(); queuePush();
+      });
+      g.appendChild(el);
+    });
+  });
+  updateActiveCount();
+}
+
+// Galleries live on the site = port1 sections not marked hidden.
+function updateActiveCount(){
+  const el=$('active-count'); if(!el) return;
+  const order=sectionOrder[0]||[];
+  const live=order.filter(id=>!sectionHidden[id]).length;
+  const over=live>VISIBLE_TARGET;
+  el.textContent=`${live} live · ${order.length} slots`+(over?`  ⚠ over ${VISIBLE_TARGET}`:'');
+  el.classList.toggle('over',over);
+  el.title=over
+    ? `${live} galleries are live. The site is designed for ${VISIBLE_TARGET} — the numbered side-menu may clip on short screens.`
+    : `${live} of ${order.length} gallery slots are live on the site.`;
+}
+function toggleSectionHidden(e, id){
+  e.stopPropagation();
+  e.preventDefault();
+  sectionHidden[id] = !sectionHidden[id];
+  renderGrid();
+  queuePush();
+}
+
+function switchTab(i){
+  document.querySelectorAll('.tab').forEach((t,ti)=>t.classList.toggle('active',ti===i));
+  $('sg0').style.display=i===0?'':'none'; $('sg1').style.display=i===1?'':'none';
+}
+
+// ── CANVAS EDITOR ─────────────────────────────────────────────────────────────
+function openEditor(id){
+  activeSec=id; activeSlide=0; selId=null;
+  const b=id.match(/b(\d+)/)[1];
+  $('ce-title').textContent=`Gallery ${b}`;
+  $('ce').classList.add('open');
+  positionCanvas();
+  renderFilmstrip(); showSlide(0); renderLayers();
+}
+function closeEditor(){ $('ce').classList.remove('open'); hideSel(); renderGrid(); }
+
+function positionCanvas(){
+  const wrap=$('canvas-wrap'), c=$('canvas');
+  const ww=wrap.clientWidth, wh=wrap.clientHeight;
+  const aspect=16/9;
+  let cw,ch;
+  if(ww/wh>aspect){ch=wh*.92;cw=ch*aspect;}else{cw=ww*.92;ch=cw/aspect;}
+  cw=Math.floor(cw); ch=Math.floor(ch);
+  c.style.width=cw+'px'; c.style.height=ch+'px';
+  c.style.left=Math.floor((ww-cw)/2)+'px'; c.style.top=Math.floor((wh-ch)/2)+'px';
+}
+
+function renderFilmstrip(){
+  const fs=$('fs'); fs.innerHTML='';
+  const slides=sections[activeSec]||[];
+  slides.forEach((slide,i)=>{
+    const th=document.createElement('div'); th.className='th'+(i===activeSlide?' act':'')+(slide.draft?' draft':''); th.dataset.i=i;
+    th.draggable=true;
+    const first=slide.layers?.find(l=>l.src||l.preview);
+    if(first){const src=first.preview||mediaURL(first.src); const el=document.createElement(first.type); el.src=src; if(first.type==='video'){el.muted=true;el.autoplay=true;el.loop=true;} th.appendChild(el);}
+    th.innerHTML+=`<button class="th-del" onclick="delSlide(event,${i})">✕</button>`;
+    th.innerHTML+=`<button class="th-draft" title="${slide.draft?'Draft — not published':'Live — click to hide'}" onclick="toggleDraftAt(event,${i})">${slide.draft?'✦':'👁'}</button>`;
+    th.onclick=e=>{if(!e.target.classList.contains('th-del')&&!e.target.classList.contains('th-draft'))showSlide(i);};
+    // drag-to-reorder
+    th.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',i);th.classList.add('dragging');});
+    th.addEventListener('dragend',()=>th.classList.remove('dragging'));
+    th.addEventListener('dragover',e=>{e.preventDefault();th.classList.add('drag-over');});
+    th.addEventListener('dragleave',()=>th.classList.remove('drag-over'));
+    th.addEventListener('drop',e=>{
+      e.preventDefault(); th.classList.remove('drag-over');
+      const from=parseInt(e.dataTransfer.getData('text/plain')), to=i;
+      if(from===to)return;
+      const arr=sections[activeSec];
+      arr.splice(to,0,arr.splice(from,1)[0]);
+      renderFilmstrip(); showSlide(to); queuePush();
+    });
+    fs.appendChild(th);
+  });
+  const add=document.createElement('div'); add.className='th-add'; add.innerHTML='+';
+  add.onclick=addSlide; fs.appendChild(add);
+}
+
+function showSlide(i){
+  const slides=sections[activeSec]||[];
+  i=Math.max(0,Math.min(slides.length-1,i));
+  activeSlide=i; selId=null; hideSel();
+  $('slide-lbl').textContent=`Slide ${i+1} / ${slides.length}`;
+  const c=$('canvas'), btn=$('bgToggle');
+  const slide=slides[i];
+  const isWhite=(slide?.bg||'#000')==='#fff';
+  c.classList.toggle('bg-white',isWhite);
+  btn.textContent=isWhite?'⬜ White':'⬛ Black';
+  const isDraft=!!slide?.draft;
+  const dBtn=$('draftToggle');
+  dBtn.textContent=isDraft?'✦ Draft':'👁 Live';
+  dBtn.style.background=isDraft?'#7a4a00':'';
+  // Remove all media layers (keep sel-box)
+  Array.from(c.querySelectorAll('[data-lid]')).forEach(el=>el.remove());
+  if(slide?.layers) slide.layers.sort((a,b)=>a.z-b.z).forEach(layer=>c.appendChild(buildLayerEl(layer)));
+  // update filmstrip highlight
+  document.querySelectorAll('.th').forEach((t,ti)=>t.classList.toggle('act',ti===i));
+}
+
+function toggleDraft(){
+  const slide=sections[activeSec]?.[activeSlide]; if(!slide)return;
+  slide.draft=!slide.draft;
+  renderFilmstrip(); showSlide(activeSlide); queuePush();
+}
+
+function toggleDraftAt(e,i){
+  e.stopPropagation();
+  const slide=sections[activeSec]?.[i]; if(!slide)return;
+  slide.draft=!slide.draft;
+  renderFilmstrip(); showSlide(activeSlide); queuePush();
+}
+
+function buildLayerEl(layer){
+  const wrap=document.createElement('div');
+  wrap.dataset.lid=layer.id;
+  const br = layer.borderRadius ? `border-radius:${layer.borderRadius}px;` : '';
+  const slide = sections[activeSec]?.[activeSlide];
+  const sh = layer.shadow && layer.type !== 'text' ? `box-shadow:${shadowCSS(slide)};` : '';
+  wrap.style.cssText=`position:absolute;left:${layer.x}%;top:${layer.y}%;width:${layer.w}%;height:${layer.h}%;transform:rotate(${layer.rot}deg);z-index:${layer.z};overflow:hidden;box-sizing:border-box;${br}${sh}`;
+  if(layer.id===selId) wrap.style.outline='2px solid #00cc66';
+  if(layer.type==='text'){
+    const txt=document.createElement('div');
+    txt.style.cssText=textLayerCSS(layer)+'width:100%;height:100%;box-sizing:border-box;padding:4px 8px;';
+    txt.textContent=layer.text||'';
+    txt.addEventListener('dblclick',e=>{
+      e.stopPropagation();
+      txt.contentEditable='true'; txt.focus();
+      const sel=window.getSelection(); sel.selectAllChildren(txt);
+    });
+    txt.addEventListener('blur',()=>{ layer.text=txt.textContent; txt.contentEditable='false'; syncTextProps(layer); });
+    txt.addEventListener('keydown',e=>{ if(e.key==='Escape'){layer.text=txt.textContent;txt.blur();} e.stopPropagation(); });
+    wrap.appendChild(txt);
+    wrap.addEventListener('mousedown',e=>{e.stopPropagation();selectLayer(layer.id,e);});
+  } else {
+    const media=document.createElement(layer.type);
+    const src=layer.preview||layer.src;
+    if(src) media.src=src.startsWith('data:')?src:mediaURL(src);
+    media.style.cssText=`width:100%;height:100%;object-fit:${layer.fit||'cover'};pointer-events:none;display:block;`;
+    if(layer.type==='video'){media.muted=true;media.autoplay=true;media.loop=true;}
+    wrap.appendChild(media);
+    wrap.addEventListener('mousedown',e=>{e.stopPropagation();selectLayer(layer.id,e);});
+  }
+  return wrap;
+}
+
+function textLayerCSS(layer){
+  return `font-size:${layer.fontSize||4}vw;font-family:'${layer.fontFamily||'Anton'}',sans-serif;color:${layer.color||'#ffffff'};text-align:${layer.align||'left'};font-weight:${layer.bold?'bold':'normal'};font-style:${layer.italic?'italic':'normal'};word-break:break-word;display:flex;align-items:center;pointer-events:none;`;
+}
+
+function renderLayers(){
+  const list=$('layer-list'); list.innerHTML='';
+  const slide=sections[activeSec]?.[activeSlide];
+  if(!slide?.layers?.length){list.innerHTML='<div style="padding:12px;font-size:.68rem;color:#2a2a2a;text-align:center;">No layers yet</div>';return;}
+  [...slide.layers].reverse().forEach(layer=>{
+    const item=document.createElement('div'); item.className='layer-item'+(layer.id===selId?' sel':''); item.dataset.lid=layer.id;
+    const src=layer.preview||layer.src;
+    const thumbHTML=layer.type==='text'
+      ?`<div class="li-thumb" style="background:#3a3a5a;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#aac;font-weight:bold;">T</div>`
+      :src?`<div class="li-thumb"><${layer.type} src="${src.startsWith('data:')?src:mediaURL(src)}" ${layer.type==='video'?'muted autoplay loop':''}></${layer.type}></div>`:'<div class="li-thumb"></div>';
+    const name=layer.type==='text'?(layer.text||'Text').slice(0,18):(layer.filename||layer.src||'Layer');
+    item.innerHTML=`${thumbHTML}<span class="li-name">${name}</span><span class="li-del" onclick="delLayer(event,'${layer.id}')">✕</span>`;
+    item.onclick=e=>{if(!e.target.classList.contains('li-del'))selectLayerById(layer.id);};
+    list.appendChild(item);
+  });
+}
+
+// ── SELECTION & TRANSFORM ─────────────────────────────────────────────────────
+function selectLayer(lid,e){
+  selId=lid; renderLayers();
+  const c=$('canvas'), wrap=c.querySelector(`[data-lid="${lid}"]`);
+  if(!wrap){hideSel();return;}
+  const layer=getLayer(lid);
+  updateSelBox(layer);
+  $('sel-box').style.display='block';
+  showTextProps(layer);
+}
+// showSlide() must run BEFORE the selection is set: its second statement is
+// `selId=null; hideSel()`, so re-rendering afterwards silently undid the select and
+// closed the properties panel — which made locked text look uneditable.
+function selectLayerById(lid){
+  showSlide(activeSlide);
+  selId=lid; renderLayers();
+  const layer=getLayer(lid);
+  if(layer){updateSelBox(layer);showTextProps(layer);}
+  $('sel-box').style.display=selId?'block':'none';
+}
+
+function showTextProps(layer){
+  const tp=$('text-props'), mp=$('media-props');
+  tp.classList.remove('visible');
+  mp.classList.remove('visible');
+  if(layer?.type==='text'){
+    tp.classList.add('visible');
+    syncTextProps(layer);
+  } else if(layer?.type==='img' || layer?.type==='video'){
+    mp.classList.add('visible');
+    syncMediaProps(layer);
+  }
+}
+
+// Soft drop-shadow CSS based on slide bg (auto: black-on-white, white-on-black)
+function shadowCSS(slide){
+  const isWhite = slide?.bg === '#fff';
+  const c = isWhite ? '0,0,0' : '255,255,255';
+  return `0 4px 18px rgba(${c},0.22)`;
+}
+
+function syncMediaProps(layer){
+  $('mp-br').value=layer.borderRadius||0;
+  $('mp-br-val').textContent=layer.borderRadius||0;
+  $('mp-lock').classList.toggle('on',!!layer.locked);
+  $('mp-shadow').classList.toggle('on',!!layer.shadow);
+  // Format toggle: only offer it once the file is actually saved (has a real src,
+  // no pending upload) and a same-name .jpg twin exists — transparent PNGs never
+  // get a twin, so they simply won't show this control.
+  const file=layer.filename||layer.src||'';
+  const ext=extOf(file), base=baseName(file);
+  const showFmt = layer.type==='img' && !layer.b64 && (ext==='png'||ext==='jpg'||ext==='jpeg') && JPEG_TWINS.has(base);
+  $('mp-format-row').style.display = showFmt ? '' : 'none';
+  if(showFmt){
+    const isJpg = ext==='jpg'||ext==='jpeg';
+    $('mp-fmt-png').classList.toggle('on', !isJpg);
+    $('mp-fmt-jpg').classList.toggle('on', isJpg);
+  }
+}
+
+function setMediaFormat(fmt){
+  const layer=getLayer(selId); if(!layer||layer.type!=='img'||layer.b64)return;
+  const file=layer.filename||layer.src; if(!file)return;
+  const base=baseName(file);
+  if(!JPEG_TWINS.has(base))return;
+  const newFile=`${base}.${fmt==='jpg'?'jpg':'png'}`;
+  layer.src=newFile;
+  if(layer.filename) layer.filename=newFile;
+  showSlide(activeSlide); renderLayers(); syncMediaProps(layer); queuePush();
+}
+
+// Given a data: URL for a freshly-dropped PNG, check whether every pixel is fully
+// opaque. If so, produce a JPEG twin (transparency can't survive JPEG, so images
+// that actually use it are left PNG-only, same rule as the bulk conversion).
+function detectOpaqueAndMakeJpeg(dataURL, quality=0.9){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      let opaque=true;
+      try{
+        const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+        for(let i=3;i<data.length;i+=4){ if(data[i]<255){opaque=false;break;} }
+      }catch(e){ opaque=false; }
+      if(!opaque){ resolve({opaque:false}); return; }
+      canvas.toBlob(blob=>{
+        if(!blob){resolve({opaque:true,jpegB64:null});return;}
+        const r=new FileReader();
+        r.onload=()=>resolve({opaque:true,jpegB64:r.result.split(',')[1]});
+        r.readAsDataURL(blob);
+      },'image/jpeg',quality);
+    };
+    img.onerror=()=>resolve({opaque:false});
+    img.src=dataURL;
+  });
+}
+
+function updateMediaProp(prop, val){
+  const layer=getLayer(selId); if(!layer)return;
+  layer[prop]=val;
+  showSlide(activeSlide);
+  queuePush();
+}
+
+function toggleShadow(){
+  const layer=getLayer(selId); if(!layer)return;
+  layer.shadow = !layer.shadow;
+  $('mp-shadow').classList.toggle('on', !!layer.shadow);
+  showSlide(activeSlide);
+  queuePush();
+}
+
+function syncTextProps(layer){
+  $('tp-text').value=layer.text||'';
+  $('tp-fs').value=layer.fontSize||4;
+  $('tp-fs-val').textContent=layer.fontSize||4;
+  $('tp-font').value=layer.fontFamily||'Anton';
+  $('tp-color').value=layer.color||'#ffffff';
+  syncColorSwatches(layer.color||'#ffffff');
+  $('tp-bold').classList.toggle('on',!!layer.bold);
+  $('tp-italic').classList.toggle('on',!!layer.italic);
+  $('tp-lock').classList.toggle('on',!!layer.locked);
+}
+
+function getLayer(lid){ return sections[activeSec]?.[activeSlide]?.layers?.find(l=>l.id===lid); }
+
+function updateSelBox(layer){
+  const c=$('canvas'), sb=$('sel-box');
+  const cw=c.clientWidth, ch=c.clientHeight;
+  const px=layer.x/100*cw, py=layer.y/100*ch;
+  const pw=layer.w/100*cw, ph=layer.h/100*ch;
+  sb.style.cssText=`left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;transform:rotate(${layer.rot}deg);transform-origin:top left;display:block;position:absolute;z-index:1000;`;
+}
+
+function hideSel(){ $('sel-box').style.display='none'; selId=null; $('text-props').classList.remove('visible'); }
+
+// Drag interactions
+const canvas=$('canvas');
+canvas.addEventListener('mousedown',e=>{
+  if(e.target===canvas||e.target.id==='canvas'){hideSel();renderLayers();return;}
+  if(e.target.id==='sel-drag'||e.target.dataset.lid){
+    const layer=getLayer(selId); if(!layer)return;
+    drag={type:'move',sx:e.clientX,sy:e.clientY,ox:layer.x,oy:layer.y}; e.preventDefault();
+  }
+});
+
+document.querySelectorAll('.handle').forEach(h=>{
+  h.addEventListener('mousedown',e=>{
+    const layer=getLayer(selId); if(!layer||layer.locked)return;
+    drag={type:'resize',handle:h.dataset.h,sx:e.clientX,sy:e.clientY,ox:layer.x,oy:layer.y,ow:layer.w,oh:layer.h}; e.preventDefault(); e.stopPropagation();
+  });
+});
+
+$('rot-h').addEventListener('mousedown',e=>{
+  const layer=getLayer(selId); if(!layer||layer.locked)return;
+  const c=canvas, sb=$('sel-box');
+  const cr=c.getBoundingClientRect(), sr=sb.getBoundingClientRect();
+  const cx=(sr.left+sr.right)/2, cy=(sr.top+sr.bottom)/2;
+  drag={type:'rotate',cx,cy,orot:layer.rot}; e.preventDefault(); e.stopPropagation();
+});
+
+document.addEventListener('mousemove',e=>{
+  if(!drag) return;
+  const layer=getLayer(selId); if(!layer)return;
+  const c=canvas, cw=c.clientWidth, ch=c.clientHeight;
+  const cr=c.getBoundingClientRect();
+  const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+  // Ignore tiny mouse movements (prevents accidental drift on click-to-select)
+  if(!drag.moved && Math.abs(dx)<5 && Math.abs(dy)<5) return;
+  drag.moved = true;
+  if(layer.locked) return;
+  const dxp=dx/cw*100, dyp=dy/ch*100;
+
+  if(drag.type==='move'){
+    layer.x=Math.round((drag.ox+dxp)*10)/10;
+    layer.y=Math.round((drag.oy+dyp)*10)/10;
+  } else if(drag.type==='resize'){
+    const h=drag.handle;
+    if(h==='se'){layer.w=Math.max(5,Math.round((drag.ow+dxp)*10)/10);layer.h=Math.max(5,Math.round((drag.oh+dyp)*10)/10);}
+    else if(h==='sw'){const nw=Math.max(5,drag.ow-dxp);layer.x=drag.ox+(drag.ow-nw);layer.w=nw;layer.h=Math.max(5,Math.round((drag.oh+dyp)*10)/10);}
+    else if(h==='ne'){layer.w=Math.max(5,Math.round((drag.ow+dxp)*10)/10);const nh=Math.max(5,drag.oh-dyp);layer.y=drag.oy+(drag.oh-nh);layer.h=nh;}
+    else if(h==='nw'){const nw=Math.max(5,drag.ow-dxp);layer.x=drag.ox+(drag.ow-nw);layer.w=nw;const nh=Math.max(5,drag.oh-dyp);layer.y=drag.oy+(drag.oh-nh);layer.h=nh;}
+  } else if(drag.type==='rotate'){
+    const angle=Math.atan2(e.clientY-drag.cy,e.clientX-drag.cx)*180/Math.PI+90;
+    layer.rot=Math.round(angle);
+  }
+
+  // Update DOM without full re-render
+  const wrap=canvas.querySelector(`[data-lid="${selId}"]`);
+  if(wrap) wrap.style.cssText=`position:absolute;left:${layer.x}%;top:${layer.y}%;width:${layer.w}%;height:${layer.h}%;transform:rotate(${layer.rot}deg);z-index:${layer.z};overflow:hidden;box-sizing:border-box;`;
+  updateSelBox(layer);
+});
+
+document.addEventListener('mouseup',()=>{ if(drag && drag.moved) queuePush(); drag=null; });
+
+// Drop files onto canvas
+canvas.addEventListener('dragover',e=>e.preventDefault());
+canvas.addEventListener('drop',e=>{e.preventDefault();addFilesToSlide(e.dataTransfer.files);});
+
+function resetSel(){
+  const layer=getLayer(selId); if(!layer)return;
+  layer.x=0;layer.y=0;layer.w=100;layer.h=100;layer.rot=0;
+  showSlide(activeSlide); updateSelBox(layer); queuePush();
+}
+
+// ── FILE / LAYER MANAGEMENT ───────────────────────────────────────────────────
+function pickFiles(){ const i=document.createElement('input'); i.type='file'; i.accept='image/*,video/*'; i.multiple=true; i.onchange=()=>addFilesToSlide(i.files); i.click(); }
+
+function addFilesToSlide(files){
+  const slide=sections[activeSec]?.[activeSlide];
+  if(!slide){st('Open a section first (click a card in the grid)','er');return;}
+  const slides=sections[activeSec];
+  let cIdx=1;
+  slides.forEach(sl=>sl.layers.forEach(l=>{const m=(l.filename||l.src||'').match(/c(\d+)\./);if(m)cIdx=Math.max(cIdx,+m[1]+1);}));
+  Array.from(files).forEach(file=>{
+    if(file.size>25*1024*1024){st(`${file.name} too large (max 25MB)`,'er');return;}
+    const ext=file.name.split('.').pop().toLowerCase();
+    const fname=`${activeSec}c${cIdx++}.${ext}`;
+    // Detect video by MIME type OR file extension — some browsers report empty type for .mov etc.
+    const VIDEO_EXTS = ['mp4','webm','mov','m4v','avi','ogv'];
+    const isVid = file.type.startsWith('video') || VIDEO_EXTS.includes(ext);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const layer={id:`l${Date.now()}`,type:isVid?'video':'img',src:'',preview:ev.target.result,b64:ev.target.result.split(',')[1],filename:fname,x:10,y:10,w:80,h:80,rot:0,z:(slide.layers.length||0)+1,fit:'cover'};
+      slide.layers.push(layer);
+      showSlide(activeSlide); renderLayers();
+      selectLayerById(layer.id);
+      st(`${fname} added — uploading…`,'');
+      queuePush();
+      if(!isVid && ext==='png'){
+        detectOpaqueAndMakeJpeg(ev.target.result).then(({opaque,jpegB64})=>{
+          if(opaque && jpegB64){
+            layer.b64_twin=jpegB64;
+            layer.filename_twin=baseName(fname)+'.jpg';
+            JPEG_TWINS.add(baseName(fname));
+            queuePush();
+          }
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function delLayer(e,lid){
+  e.stopPropagation();
+  const slide=sections[activeSec]?.[activeSlide]; if(!slide)return;
+  slide.layers=slide.layers.filter(l=>l.id!==lid);
+  if(selId===lid){hideSel();}
+  showSlide(activeSlide); renderLayers(); queuePush();
+}
+
+function addSlide(){
+  sections[activeSec].push({layers:[]});
+  renderFilmstrip(); showSlide(sections[activeSec].length-1); renderLayers();
+}
+
+function delSlide(e,i){
+  e.stopPropagation();
+  if(sections[activeSec].length<=1)return;
+  if(!confirm('Delete this slide?'))return;
+  sections[activeSec].splice(i,1);
+  renderFilmstrip(); showSlide(Math.min(i,sections[activeSec].length-1)); renderLayers();
+}
+
+// ── TEXT LAYERS ───────────────────────────────────────────────────────────────
+function addTextLayer(){
+  const slide=sections[activeSec]?.[activeSlide]; if(!slide)return;
+  const layer={id:`l${Date.now()}`,type:'text',text:'Text',x:10,y:35,w:80,h:20,rot:0,z:(slide.layers.length||0)+1,fontSize:4,fontFamily:'Anton',color:'#ffffff',align:'center',bold:false,italic:false};
+  slide.layers.push(layer);
+  showSlide(activeSlide); renderLayers(); selectLayerById(layer.id); queuePush();
+}
+
+function updateTextProp(prop, val){
+  const layer=getLayer(selId); if(!layer||layer.type!=='text')return;
+  layer[prop]=val;
+  const wrap=$('canvas').querySelector(`[data-lid="${selId}"]`);
+  if(wrap){
+    const txt=wrap.firstChild;
+    if(prop==='text') txt.textContent=val;
+    else txt.style.cssText=textLayerCSS(layer)+'width:100%;height:100%;box-sizing:border-box;padding:4px 8px;';
+  }
+  renderLayers(); queuePush();
+}
+
+// One-click black/white. Deliberately does NOT check layer.locked — the lock guards
+// position only, so colour stays editable on the locked title/body/tools slots.
+function setTextColor(hex){
+  const layer=getLayer(selId); if(!layer||layer.type!=='text')return;
+  $('tp-color').value=hex;
+  updateTextProp('color',hex);
+  syncColorSwatches(hex);
+}
+
+// Ring the swatch matching the layer's current colour (tolerates #FFF / #ffffff casing).
+function syncColorSwatches(hex){
+  const h=(hex||'').trim().toLowerCase();
+  const norm = h.length===4 ? '#'+h[1]+h[1]+h[2]+h[2]+h[3]+h[3] : h;
+  $('tp-black').classList.toggle('on', norm==='#000000');
+  $('tp-white').classList.toggle('on', norm==='#ffffff');
+}
+
+function toggleTextProp(prop, btnId){
+  const layer=getLayer(selId); if(!layer||layer.type!=='text')return;
+  layer[prop]=!layer[prop];
+  $(btnId).classList.toggle('on',layer[prop]);
+  updateTextProp(prop, layer[prop]);
+}
+
+function cycleAlign(){
+  const layer=getLayer(selId); if(!layer||layer.type!=='text')return;
+  const opts=['left','center','right'];
+  layer.align=opts[(opts.indexOf(layer.align)+1)%3];
+  $('tp-al').textContent=layer.align==='left'?'≡ L':layer.align==='center'?'≡ C':'≡ R';
+  updateTextProp('align',layer.align);
+}
+
+// Standard title/body slot positions (consistent across all sections)
+const TITLE_SLOT = { x: 8.2, y: 5.5,  w: 22.0, h: 30.7, fontSize: 2.5,  fontFamily: 'monospace', bold: true,  align: 'left',  color: '#000000', italic: false };
+const BODY_SLOT  = { x: 8.3, y: 32.0, w: 19.5, h: 56.4, fontSize: 1.0,  fontFamily: 'sans-serif', bold: false, align: 'left',  color: '#000000', italic: false };
+const TOOLS_SLOT = { x: 8.3, y: 91.0, w: 30.0, h: 7.5, fontSize: 0.75, fontFamily: 'sans-serif', bold: false, align: 'left', color: '#000000', italic: true };
+const TOOLS_DEFAULT_TEXT = 'This was created in UE5, Blender, CLO3d and Substance';
+
+function snapText(slot){
+  const layer=getLayer(selId); if(!layer||layer.type!=='text')return;
+  const t = slot==='title' ? TITLE_SLOT : (slot==='tools' ? TOOLS_SLOT : BODY_SLOT);
+  Object.assign(layer, t, { rot: 0 });
+  layer.locked = true;
+  showSlide(activeSlide);
+  showTextProps(layer);
+  updateSelBox(layer);
+  $('tp-lock').classList.add('on');
+  queuePush();
+}
+
+function toggleLock(){
+  const layer=getLayer(selId); if(!layer)return;
+  layer.locked = !layer.locked;
+  $('tp-lock').classList.toggle('on', !!layer.locked);
+  queuePush();
+}
+
+function snapAllText(){
+  if(!confirm('Snap every text layer in every gallery to the standard slots? Top→Title, middle→Body, bottom→Tools.')) return;
+  let snapped = 0;
+  Object.values(sections).forEach(slides=>{
+    slides.forEach(slide=>{
+      const txts = (slide.layers||[]).filter(l=>l.type==='text').sort((a,b)=>a.y-b.y);  // top-to-bottom
+      txts.forEach((layer, i)=>{
+        let t;
+        if (i === 0) t = TITLE_SLOT;
+        else if (i === 1) t = BODY_SLOT;
+        else t = TOOLS_SLOT;  // 3rd+ text layers → Tools slot
+        Object.assign(layer, t, { rot: 0, locked: true });
+        snapped++;
+      });
+    });
+  });
+  if(activeSec) showSlide(activeSlide);
+  renderGrid();
+  queuePush();
+  st(`✓ Snapped ${snapped} text layers — push will save them`,'ok');
+}
+
+function addToolsCaptionToAll(){
+  if(!confirm('Add a "Tools used" caption to the first slide of every gallery?\nYou can edit each one afterwards.')) return;
+  let added = 0, skipped = 0;
+  Object.values(sections).forEach(slides=>{
+    const firstSlide = slides[0];
+    if(!firstSlide) return;
+    if(!firstSlide.layers) firstSlide.layers = [];
+    // Skip if a tools-style caption already exists in this slide (text near bottom)
+    const hasTools = firstSlide.layers.some(l => l.type==='text' && l.y >= 85);
+    if(hasTools){ skipped++; return; }
+    const layer = {
+      id: `l${Date.now()}${Math.random().toString(36).slice(2,5)}`,
+      type: 'text',
+      text: TOOLS_DEFAULT_TEXT,
+      ...TOOLS_SLOT,
+      rot: 0,
+      z: firstSlide.layers.length + 1,
+      locked: true,
+    };
+    firstSlide.layers.push(layer);
+    added++;
+  });
+  if(activeSec) showSlide(activeSlide);
+  renderGrid();
+  queuePush();
+  st(`✓ Added ${added} tools captions${skipped?` (${skipped} skipped — already had one)`:''}`,'ok');
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────────────
+async function saveAll(){
+  if(PREVIEW_MODE){
+    unsaved=false; clearTimeout(autoSaveTimer);
+    st('🧪 Preview mode — not pushed to GitHub','warn');
+    renderGrid();
+    return;
+  }
+  if(!tok()){alert('No GitHub token — enter your token and click Load first.');return;}
+  if(!idxSha){alert('Editor not loaded — click Load first.');return;}
+  if(isSaving){st('⏳ Already saving — will retry…','warn'); return;}
+  isSaving=true;
+  $('saveBtn').disabled=true;
+  // Collect all layers with b64 (newly added files), plus any pending JPEG twins
+  // generated client-side for freshly-added opaque PNGs.
+  const uploads=[]; Object.values(sections).forEach(slides=>slides.forEach(sl=>sl.layers.forEach(l=>{
+    if(l.b64)uploads.push(l);
+    if(l.b64_twin && l.filename_twin) uploads.push({filename:l.filename_twin,b64:l.b64_twin,_twin:true,_parent:l});
+  })));
+  console.log(`saveAll: ${uploads.length} file(s) to upload`, uploads.map(l=>l.filename));
+  let done=0;
+  for(const l of uploads){
+    st(`Uploading ${l.filename} (${++done}/${uploads.length})…`);
+    try{
+      // Helper: PUT with current SHA (or none for new files)
+      async function putFile(sha){
+        const body={message:`Upload ${l.filename}`,content:l.b64,branch:BRANCH};
+        if(sha) body.sha=sha;
+        return gh(l.filename,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      }
+      // First attempt: fetch SHA if file exists, then PUT
+      const ex=await gh(l.filename);
+      let sha = ex.ok ? (await ex.json()).sha : undefined;
+      let res = await putFile(sha);
+      // 409/422 commonly mean SHA is stale → refetch and retry once
+      if(res.status===409 || res.status===422){
+        console.warn(`${l.filename}: ${res.status}, refreshing SHA and retrying…`);
+        const ex2=await gh(l.filename);
+        sha = ex2.ok ? (await ex2.json()).sha : undefined;
+        res = await putFile(sha);
+      }
+      if(!res.ok){
+        const errText=await res.text();
+        console.error('Upload failed:', res.status, errText);
+        alert(`Upload failed for ${l.filename}:\n${res.status} — ${errText}`);
+        $('saveBtn').disabled=false; return;
+      }
+      console.log(`Uploaded: ${l.filename}`);
+      if(l._twin && l._parent){ delete l._parent.b64_twin; delete l._parent.filename_twin; }
+      else { l.src=l.filename; delete l.b64; }
+    }catch(e){
+      console.error('Upload error:', e);
+      alert(`Upload error for ${l.filename}:\n${e.message}`);
+      $('saveBtn').disabled=false; return;
+    }
+  }
+  st('Updating index.html…');
+  try{
+    await pushHTML();
+    unsaved=false;
+    st(`✓ ${uploads.length?uploads.length+' file(s) + ':''}index.html saved`,'ok');
+    console.log('Push complete');
+  } catch(e){
+    console.error('pushHTML failed:', e);
+    alert(`Save failed — your changes are still in the editor but not on GitHub.\n\nError: ${e.message}\n\nTry clicking "Push to GitHub" again.`);
+    st('⚠ Save failed — click Push to retry','er');
+  }
+  isSaving=false;
+  $('saveBtn').disabled=false; renderGrid();
+  // If changes came in while we were saving, save again
+  if(unsaved) queuePush();
+}
+
+function buildHTML(){
+  console.log('[buildHTML] sectionOrder:', JSON.stringify(sectionOrder));
+  let html=idxHTML;
+  // 1. Replace each section's slide content
+  Object.entries(sections).forEach(([id,slides])=>{
+    let galContent='';
+    slides.forEach(slide=>{
+      if(!slide.layers?.length)return;
+      const bgClass=slide.bg==='#fff'?' bg-white':'';
+      const draftClass=slide.draft?' draft':'';
+      let frame=`<div class="canvas-frame${bgClass}${draftClass}">`;
+      slide.layers.sort((a,b)=>a.z-b.z).forEach(layer=>{
+        const pos=`position:absolute;left:${layer.x.toFixed(1)}%;top:${layer.y.toFixed(1)}%;width:${layer.w.toFixed(1)}%;height:${layer.h.toFixed(1)}%;transform:rotate(${layer.rot}deg);z-index:${layer.z};`;
+        const lockAttr = layer.locked ? ' data-locked="1"' : '';
+        if(layer.type==='text'){
+          const style=pos+`font-size:${layer.fontSize||4}vw;font-family:'${layer.fontFamily||'Anton'}',sans-serif;color:${layer.color||'#ffffff'};text-align:${layer.align||'left'};font-weight:${layer.bold?'bold':'normal'};font-style:${layer.italic?'italic':'normal'};word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;`;
+          frame+=`<div class="txt-layer"${lockAttr} style="${style}">${layer.text||''}</div>`;
+        } else {
+          const br = layer.borderRadius ? `border-radius:${layer.borderRadius}px;` : '';
+          // Auto-shadow: black on white bg, white on black bg
+          const sh = layer.shadow ? `box-shadow:0 4px 18px rgba(${slide.bg==='#fff'?'0,0,0':'255,255,255'},0.22);` : '';
+          const style=pos+`object-fit:${layer.fit||'cover'};${br}${sh}`;
+          if(layer.type==='video'){
+            const file = layer.filename||layer.src;
+            // SAFETY: never emit a video with empty src — that would break the live site.
+            // If file is empty here, it means parseHTML failed to read the source. Skip this layer.
+            if (!file) { console.warn('Skipping video layer with empty src — parseHTML may have missed it', layer); return; }
+            const mobile = file.replace(/(\.[^.]+)$/, '_mobile$1');
+            frame+=`<video${lockAttr} style="${style}" autoplay loop muted playsinline>`
+              +`<source src="${mobile}" media="(max-width: 768px), (max-height: 500px)">`
+              +`<source src="${file}">`
+              +`</video>`;
+          } else {
+            const file = layer.filename||layer.src;
+            if (!file) { console.warn('Skipping image layer with empty src', layer); return; }
+            frame+=`<img src="${file}"${lockAttr} style="${style}" loading="lazy" alt="">`;
+          }
+        }
+      });
+      frame+='</div>\n                    ';
+      galContent+=frame;
+    });
+    html=html.replace(
+      new RegExp(`(<section[^>]+id="${id}"[\\s\\S]*?<div[^>]+class="horizontal-gallery"[^>]*>)[\\s\\S]*?(</div>\\s*</section>)`),
+      `$1\n                    ${galContent}$2`
+    );
+  });
+  // 2. Update section-level hidden (draft) class on each <section> element
+  Object.keys(sectionHidden).forEach(id=>{
+    const hidden=!!sectionHidden[id];
+    html=html.replace(
+      new RegExp(`(<section[^>]*?id="${id}"[^>]*?class="project-section)(\\s+draft)?(")`),
+      (_,pre,_d,q)=>`${pre}${hidden?' draft':''}${q}`
+    );
+  });
+  // 3. Reorder sections + nav for each portfolio
+  [0,1].forEach(pi=>{ html=reorderPortHTML(html,pi); });
+  return html;
+}
+
+function reorderPortHTML(html, pi){
+  const portId = pi===0 ? 'port1' : 'port2';
+  const order = sectionOrder[pi];
+
+  // -- reorder <section> elements within <main> --
+  const portPos = html.indexOf(`id="${portId}"`);
+  if(portPos===-1) return html;
+  const mainOpen = html.indexOf('<main', portPos);
+  const mainClose = html.indexOf('</main>', mainOpen);
+  if(mainOpen===-1||mainClose===-1) return html;
+  const mainTagEnd = html.indexOf('>', mainOpen)+1;
+  const mainInner = html.slice(mainTagEnd, mainClose);
+
+  // Split before each <section
+  const parts = mainInner.split(/(?=<section[\s>])/);
+  const leading = parts[0];
+  const secMap = {};
+  for(let i=1;i<parts.length;i++){
+    const m=parts[i].match(/\bid="([^"]+)"/);
+    if(m) secMap[m[1]]=parts[i];
+  }
+  const reorderedMain = leading + order.map(id=>secMap[id]||'').join('');
+  html = html.slice(0, mainTagEnd) + reorderedMain + html.slice(mainClose);
+
+  // -- reorder nav <a> links to match new section order (hidden sections excluded) --
+  const navOpen = html.indexOf('<nav', portPos);
+  const navClose = html.indexOf('</nav>', navOpen);
+  if(navOpen===-1||navClose===-1) return html;
+  const navTagEnd = html.indexOf('>', navOpen)+1;
+  // rebuild nav links: only visible sections get a numbered link
+  const visibleOrder = order.filter(id=>!sectionHidden[id]);
+  const newNav = visibleOrder.map((id,i)=>`<a href="#${id}">${i+1}</a>`).join('');
+  html = html.slice(0, navTagEnd) + newNav + html.slice(navClose);
+
+  return html;
+}
+
+async function pushHTML(){
+  let html=buildHTML();
+  let enc=btoa(unescape(encodeURIComponent(html)));
+  let res=await gh('index.html',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Update portfolio',content:enc,sha:idxSha,branch:BRANCH})});
+  if(res.status===409||res.status===422){
+    // Conflict: GitHub has newer content. Refresh idxHTML and rebuild on top of it
+    // so external changes (e.g. terminal pushes) aren't overwritten.
+    st('Conflict — refreshing base & rebuilding…');
+    const fresh=await gh('index.html');
+    if(!fresh.ok) throw new Error('Could not refresh: '+fresh.status);
+    const d=await fresh.json();
+    idxSha=d.sha;
+    idxHTML=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    html=buildHTML();  // rebuild with fresh base
+    enc=btoa(unescape(encodeURIComponent(html)));
+    res=await gh('index.html',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Update portfolio',content:enc,sha:idxSha,branch:BRANCH})});
+  }
+  if(!res.ok) throw new Error(await res.text());
+  const d=await res.json(); idxSha=d.content.sha; idxHTML=html;
+}
+
+function toggleCanvasBg(){
+  const c=$('canvas'), btn=$('bgToggle');
+  const isWhite=c.classList.toggle('bg-white');
+  btn.textContent=isWhite?'⬜ White':'⬛ Black';
+  const slide=sections[activeSec]?.[activeSlide]; if(slide) slide.bg=isWhite?'#fff':'#000';
+  queuePush();
+}
+
+window.addEventListener('resize',()=>{ positionCanvas(); if(selId){const l=getLayer(selId);if(l)updateSelBox(l);} });
+window.onload=()=>{
+  const t=localStorage.getItem('gh_t'); if(t)$('tok').value=t;
+  // Label the badge from REPO itself, so what you read is always what Load/Push targets
+  $('repo-badge').textContent=REPO;
+  $('repo-badge').title=`This editor loads from and pushes to ${REPO} (${BRANCH})`;
+  if(PREVIEW_MODE){ $('saveBtn').textContent='Push to GitHub (preview — disabled)'; $('repo-badge').classList.add('preview'); $('repo-badge').textContent=REPO+' · preview'; st('🧪 Preview mode — Load is real, saving is a no-op',''); }
+};
+</script>
+</body>
+</html>

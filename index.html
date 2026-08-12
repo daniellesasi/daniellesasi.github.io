@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Danielle Sasi</title>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FJ3WESE87L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-FJ3WESE87L');
+    </script>
+    
+    <script data-goatcounter="https://daniellesasi.goatcounter.com/count"
+            async src="https://gc.zgo.at/count.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Anton', sans-serif; overflow: hidden; background-color: #000; letter-spacing: 1px; -webkit-tap-highlight-color: transparent; touch-action: pan-y; }
+        
+        .side-menu { position: fixed; top: 40px; left: 40px; z-index: 100; display: flex; flex-direction: column; gap: 10px; opacity: 0; transition: opacity 0.4s ease; max-height: calc(100vh - 60px); max-height: calc(100svh - 60px); overflow: hidden; }
+        .side-menu a { text-decoration: none; color: white; font-size: 2.1rem; transition: color 0.3s ease, opacity 0.4s ease, transform 0.4s ease, font-size 0.35s ease; }
+        .side-menu a:hover { opacity: 0.6; transform: translateX(10px); }
+        .side-menu a.current { font-size: 3.4rem; opacity: 1 !important; }
+        
+        .portfolio-switcher { position: fixed; bottom: 40px; left: 40px; z-index: 200; display: flex; gap: 15px; }
+
+        /* First-visit nav hint: arrow flies from screen center to right side, demonstrating click-to-advance */
+        #nav-hint { position: fixed; top: 50%; left: 50vw; z-index: 9999; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; filter: drop-shadow(0 0 8px rgba(0,0,0,0.7)) drop-shadow(0 2px 16px rgba(0,0,0,0.5)); }
+        #nav-hint .nh-chev { width: 44px; height: 44px; border-top: 4px solid #fff; border-right: 4px solid #fff; transform: rotate(45deg); }
+        #nav-hint.flying { animation: nh-fly 2.6s cubic-bezier(0.4,0,0.2,1) forwards; }
+        @keyframes nh-fly {
+            0%   { left: 50vw;                opacity: 0; }
+            15%  { left: 50vw;                opacity: 1; }
+            32%  { left: 50vw;                opacity: 1; }
+            88%  { left: calc(100vw - 70px);  opacity: 1; }
+            100% { left: calc(100vw - 70px);  opacity: 0; }
+        }
+        /* While the hint is playing, scrolling is disabled so the user actually sees it */
+        body.scroll-locked .vertical-scroll-container { overflow: hidden !important; touch-action: none; }
+        body.scroll-locked .horizontal-gallery { pointer-events: none; }
+
+        .circle-btn { width: 44px; height: 44px; background-color: white; border-radius: 50%; cursor: pointer; opacity: 0.3; transition: transform 0.3s ease, opacity 0.3s ease; }
+        .circle-btn:hover { transform: scale(1.1); }
+        .circle-btn.active { opacity: 1; }
+        
+        .portfolio-wrapper { display: none; }
+        .portfolio-wrapper.active { display: block; }
+        
+        /* vertical scroll between galleries */
+        .vertical-scroll-container { display: flex; flex-direction: column; width: 100vw; height: 100vh; height: 100svh; overflow-y: scroll; overflow-x: hidden; scroll-snap-type: y mandatory; overscroll-behavior-y: contain; touch-action: pan-y; scrollbar-width: none; -ms-overflow-style: none; }
+        /* scroll-behavior: smooth intentionally removed — it breaks scroll-snap on Android Chrome */
+        .vertical-scroll-container::-webkit-scrollbar { display: none; }
+        .project-section { width: 100vw; height: 100vh; height: 100svh; flex-shrink: 0; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; position: relative; cursor: pointer; }
+
+        /* horizontal slides inside each gallery, navigated by click */
+        .horizontal-gallery { display: flex; flex-direction: row; width: 100vw; height: 100vh; height: 100svh; will-change: transform; transition: transform 0.45s cubic-bezier(0.4,0,0.2,1); }
+        .horizontal-gallery.no-transition { transition: none !important; }
+        .canvas-frame { position: relative; min-width: 100vw; width: 100vw; height: 100vh; height: 100svh; flex-shrink: 0; overflow: hidden; background: #000; }
+        .canvas-frame.bg-white { background: #fff; }
+        .canvas-frame.draft { display: none !important; }
+        .project-section.draft { display: none !important; }
+
+        /* full-page initial loader — covers the site until the first slide is ready */
+        #initial-loader { position: fixed; inset: 0; background: #000; z-index: 9990; display: flex; align-items: center; justify-content: center; transition: opacity 0.45s ease; }
+        #initial-loader.hidden { opacity: 0; pointer-events: none; }
+        #initial-loader::after { content: ''; width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.18); border-top-color: rgba(255,255,255,0.85); animation: fl-spin 0.8s linear infinite; }
+
+        /* per-frame loader — content hidden by default; revealed only after JS adds .ready class */
+        .canvas-frame > .canvas-inner { opacity: 0; transition: opacity 0.4s ease; }
+        .canvas-frame.ready > .canvas-inner { opacity: 1; }
+        .frame-loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 6; opacity: 1; transition: opacity 0.3s ease; }
+        .canvas-frame.ready > .frame-loader { opacity: 0; }
+        .frame-loader::after { content: ''; width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.18); border-top-color: rgba(255,255,255,0.85); animation: fl-spin 0.8s linear infinite; }
+        .canvas-frame.bg-white .frame-loader::after { border-color: rgba(0,0,0,0.15); border-top-color: rgba(0,0,0,0.65); }
+        @keyframes fl-spin { to { transform: rotate(360deg); } }
+        /* design canvas: 1920x1080 internal layout, absolutely centered, scaled */
+        .canvas-inner { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--canvas-scale, 1)); transform-origin: center center; overflow: hidden; }
+        .canvas-frame img, .canvas-frame video { position: absolute; object-fit: cover; user-select: none; pointer-events: none; max-width: none; }
+        .canvas-frame .txt-layer { position: absolute; user-select: none; pointer-events: none; overflow: hidden; overflow-wrap: break-word; box-sizing: border-box; }
+
+        /* ── GALLERY ARROWS ── */
+        .gallery-arrow { position: absolute; top: 50%; z-index: 50; pointer-events: none; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 6px rgba(0,0,0,0.6)) drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: arr-flicker 1.4s ease-in-out infinite; }
+        .gallery-arrow.left  { display: none; }  /* hidden so it doesn't collide with side-menu numbers; clicking left half still goes back */
+        .gallery-arrow.right { right: 32px; }
+        .gallery-arrow .arr { width: 22px; height: 22px; border-top: 3px solid #fff; border-right: 3px solid #fff; }
+        .gallery-arrow.left  .arr { transform: rotate(-135deg); }
+        .gallery-arrow.right .arr { transform: rotate(45deg); }
+        .gallery-arrow.hidden { display: none !important; }
+        .gallery-arrow.on-white .arr { border-color: #000; }
+        @keyframes arr-flicker {
+            0%   { opacity: 0.25; transform: translateY(-50%) scale(0.9); }
+            50%  { opacity: 1;    transform: translateY(-50%) scale(1.1); }
+            100% { opacity: 0.25; transform: translateY(-50%) scale(0.9); }
+        }
+        @keyframes arr-pulse {
+            0%, 100% { opacity: 0.12; transform: translateY(-50%) scale(0.8); }
+            50%      { opacity: 1;    transform: translateY(-50%) scale(1.3); }
+        }
+        .gallery-arrow.right.must-click { animation: arr-pulse 0.7s ease-in-out infinite !important; }
+        .project-section:hover .gallery-arrow { animation-play-state: paused; }
+        .project-section:hover .gallery-arrow.must-click { animation-play-state: running !important; }
+
+        /* ── SCROLL HINT ── */
+        #scroll-hint { position: fixed; bottom: 72px; left: 50%; z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; pointer-events: none; filter: drop-shadow(0 0 8px rgba(0,0,0,0.7)) drop-shadow(0 2px 16px rgba(0,0,0,0.5)); --ox:0px; --oy:0px; --tx:0px; --ty:0px; }
+        /* fly in: from right-arrow position → center bottom, chevron rotates → to ↓ */
+        #scroll-hint.flying-in  { animation: sh-fly-in  3.8s cubic-bezier(0.35,0,0.25,1) forwards; }
+        /* fly out: center bottom → right-arrow position, chevron rotates ↓ to → */
+        #scroll-hint.flying-out { animation: sh-fly-out 0.55s cubic-bezier(0.4,0,0.6,1) forwards; }
+        @keyframes sh-fly-in  {
+            0%   { opacity:1;   transform:translateX(calc(-50% + var(--ox))) translateY(var(--oy)); }
+            28%  { opacity:1;   transform:translateX(-50%) translateY(0); }
+            55%  { opacity:1; }
+            72%  { opacity:0.1; }
+            84%  { opacity:1; }
+            96%  { opacity:0.1; }
+            100% { opacity:0;   transform:translateX(-50%) translateY(0); }
+        }
+        @keyframes sh-fly-out {
+            0%   { opacity:1; transform:translateX(-50%) translateY(0); }
+            100% { opacity:0; transform:translateX(calc(-50% + var(--tx))) translateY(var(--ty)); }
+        }
+        .sh-label { font-family:'Anton',sans-serif; font-size:0.7rem; letter-spacing:4px; color:#fff; opacity:0; transition: opacity 0.35s 0.6s ease, color 0.3s ease; }
+        #scroll-hint.flying-in .sh-label { opacity:1; }
+        .sh-chev { width:28px; height:28px; border-right:3px solid #fff; border-bottom:3px solid #fff; transform:rotate(-45deg); transition: transform 0.5s 0.2s cubic-bezier(0.4,0,0.2,1), border-color 0.3s ease; }
+        #scroll-hint.flying-in  .sh-chev { transform:rotate(45deg); }
+        #scroll-hint.flying-out .sh-chev { transform:rotate(-45deg); transition-delay:0s; }
+        #scroll-hint.on-white .sh-label { color:#000; }
+        #scroll-hint.on-white .sh-chev  { border-right-color:#000; border-bottom-color:#000; }
+
+        /* ── MOBILE ── */
+        #rotate-prompt {
+            display: none;
+            position: fixed; inset: 0;
+            background: #000;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+        }
+        #rotate-phone {
+            width: 54px; height: 90px;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            position: relative;
+            animation: rock 1.8s ease-in-out infinite;
+        }
+        #rotate-phone::before {
+            content: '';
+            position: absolute;
+            bottom: 8px; left: 50%;
+            transform: translateX(-50%);
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+        #rotate-label {
+            color: #fff;
+            font-family: 'Anton', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            opacity: 0.75;
+        }
+        @keyframes rock {
+            0%, 100% { transform: rotate(0deg); }
+            40%       { transform: rotate(-88deg); }
+            60%       { transform: rotate(-88deg); }
+        }
+        #landscape-loader {
+            display: none;
+            position: fixed; inset: 0;
+            background: #000;
+            z-index: 9998;
+            opacity: 1;
+            transition: opacity 0.6s ease;
+        }
+
+        /* ── ABOUT PAGE (port2) — fonts match the slide text (system sans-serif) ── */
+        .about-wrapper { background: #fff; color: #000; }
+        .about-wrapper.active { display: block; }
+        .about-scroll { width: 100vw; height: 100vh; height: 100svh; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+        .about-scroll::-webkit-scrollbar { display: none; }
+        .about-content { max-width: 640px; margin: 0 auto; padding: 90px 40px 100px; font-family: 'sans-serif', sans-serif; letter-spacing: 1px; }
+        .about-title { font-family: 'monospace', sans-serif; font-size: 2.2rem; font-weight: bold; letter-spacing: 3px; line-height: 1.15; margin: 0 0 56px; }
+        .about-h { font-family: 'monospace', sans-serif; font-size: 0.82rem; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin: 44px 0 12px; }
+        .about-content p { font-family: 'sans-serif', sans-serif; font-size: 0.92rem; line-height: 1.65; margin: 0 0 6px; }
+        .about-content p + p { margin-top: 6px; }
+        .about-content a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+        .about-content a:hover { opacity: 0.55; }
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            .portfolio-wrapper { display: none !important; }
+            .portfolio-switcher { display: none; }
+            .side-menu { display: none; }
+            #rotate-prompt { display: flex; }
+        }
+
+        /* ── SHORT SCREENS (small laptops, monitors ~600-750px tall) ── */
+        @media (max-height: 750px) {
+            .side-menu { top: 24px; left: 24px; gap: 6px; }
+            .side-menu a { font-size: 1.5rem; }
+            .side-menu a.current { font-size: 2.4rem; }
+        }
+
+        @media (max-height: 500px) {
+            .about-content { padding: 50px 36px 70px; max-width: 560px; }
+            .about-title { font-size: 1.7rem; margin-bottom: 32px; letter-spacing: 2px; }
+            .about-h { font-size: 0.66rem; margin: 28px 0 8px; letter-spacing: 2px; }
+            .about-content p { font-size: 0.78rem; line-height: 1.55; }
+        }
+
+        /* ── MOBILE LANDSCAPE: scale UI chrome down to fit short screens ── */
+        @media (max-height: 500px) {
+            .side-menu { top: 8px; left: 10px; gap: 1px; }
+            .side-menu a { font-size: 0.85rem; }
+            .side-menu a.current { font-size: 1.35rem; }
+            .portfolio-switcher { bottom: 14px; left: 14px; gap: 8px; }
+            .circle-btn { width: 26px; height: 26px; }
+            .gallery-arrow.right { right: 14px; }
+            #nav-hint .nh-chev { width: 30px; height: 30px; border-width: 3px; }
+            .gallery-arrow .arr { width: 14px; height: 14px; border-width: 2px; }
+            #scroll-hint { bottom: 22px; gap: 6px; }
+            .sh-chev { width: 18px; height: 18px; border-width: 2px; }
+            .sh-label { font-size: 0.55rem; letter-spacing: 2px; }
+            /* Scale up text layers so they're readable on phone screens */
+            .canvas-frame .txt-layer { font-size: max(inherit, 2vmin) !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="initial-loader"></div>
+
+    <div class="portfolio-switcher">
+        <div class="circle-btn active" id="btn-port1" onclick="switchPortfolio('port1')" title="Portfolio"></div>
+        <div class="circle-btn" id="btn-port2" onclick="switchPortfolio('port2')" title="About"></div>
+    </div>
+
+    <div id="port1" class="portfolio-wrapper active">
+        <nav class="side-menu"><a href="#a1b9">1</a><a href="#a1b10">2</a><a href="#a1b11">3</a><a href="#a1b12">4</a><a href="#a1b13">5</a><a href="#a1b4">6</a><a href="#a1b2">7</a><a href="#a1b1">8</a><a href="#a1b7">9</a><a href="#a1b6">10</a><a href="#a1b5">11</a></nav>
+
+        <main class="vertical-scroll-container">
+            <section id="a1b9" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c1.jpg" style="position:absolute;left:50.1%;top:0.0%;width:38.8%;height:100.7%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">BAD HAIR DAY</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A platform game built around a character whose hair changes form to provide different abilities. The propeller form allows the character to fly, the mop form clears obstacles and reveals hidden items, and the multi-leg form enables movement across walls and ceilings. Progression is based on switching between these abilities to navigate different environments.</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This project was created using Blender, ComfyUI, Illustrator, and hand-drawn sketches.</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c6.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.2%;height:101.1%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c9.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.7%;height:101.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c10.jpg" style="position:absolute;left:7.3%;top:6.7%;width:91.0%;height:86.2%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c15.jpg" style="position:absolute;left:11.0%;top:10.0%;width:80.0%;height:81.6%;transform:rotate(0deg);z-index:2;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b9c12.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.4%;height:101.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b9c13.jpg" style="position:absolute;left:0.0%;top:0.0%;width:101.5%;height:101.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+            <section id="a1b10" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">LALALANDERS</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A life-simulation game centred on character customisation, interior design and everyday activities. Players create and dress characters, furnish individual spaces and develop different rooms using modular furniture and decorative assets. The project includes character design, environment design, props and isometric room layouts.</div><img src="https://daniellesasi.github.io/Sett/a1b10c9.jpg" style="position:absolute;left:33.3%;top:15.2%;width:67.0%;height:66.4%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This project was created using Blender, ComfyUI, Illustrator, and hand-drawn sketches.</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c8.jpg" style="position:absolute;left:4.8%;top:2.2%;width:94.3%;height:95.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c7.jpg" style="position:absolute;left:10.9%;top:8.9%;width:78.1%;height:81.0%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c6.jpg" style="position:absolute;left:12.2%;top:6.3%;width:85.7%;height:88.3%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c5.jpg" style="position:absolute;left:7.2%;top:8.9%;width:89.2%;height:81.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white draft"><img src="https://daniellesasi.github.io/Sett/a1b10c10.jpg" style="position:absolute;left:11.1%;top:11.0%;width:77.8%;height:77.4%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c11.jpg" style="position:absolute;left:10.9%;top:11.2%;width:77.9%;height:77.5%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c12.jpg" style="position:absolute;left:11.1%;top:11.6%;width:77.9%;height:77.0%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b10c13.jpg" style="position:absolute;left:11.1%;top:11.6%;width:77.9%;height:76.5%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b10c14.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.7%;height:101.2%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+            <section id="a1b11" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b11c1.jpg" style="position:absolute;left:47.5%;top:0.0%;width:41.5%;height:101.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">ICY TOWER
+RETURENS</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A vertical platform game that reimagines the tower as the world itself. The player begins beneath the Earth and climbs through a sequence of stacked environments, moving from subterranean caves into the ocean, woods, city, sky and space, before reaching an alien UFO world . Each layer introduces its own platforms, hazards and movement challenges, turning the climb into a continuous journey from the deepest point underground to the furthest edge of the universe.</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This project was created using Blender, ComfyUI, Illustrator, and hand-drawn sketches.</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b11c2.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.7%;height:101.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b11c6.jpg" style="position:absolute;left:-1.3%;top:-1.8%;width:102.3%;height:104.1%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:2px;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b11c3.jpg" style="position:absolute;left:-1.3%;top:-2.9%;width:104.9%;height:106.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b11c4.jpg" style="position:absolute;left:13.8%;top:10.7%;width:82.2%;height:79.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b11c5.jpg" style="position:absolute;left:0.0%;top:0.0%;width:105.1%;height:102.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+            <section id="a1b12" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b12c1.jpg" style="position:absolute;left:50.0%;top:0.0%;width:38.8%;height:101.5%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">Bye on X</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A skating racing game featuring a group of animal and biomechanical characters. Players compete across obstacle-based tracks using speed, balance and movement abilities associated with each character. The project includes character development.</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This project was created using Blender, ComfyUI, and hand-drawn sketches.</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b12c5.jpg" style="position:absolute;left:8.3%;top:7.2%;width:89.3%;height:86.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b12c6.jpg" style="position:absolute;left:7.7%;top:6.1%;width:86.1%;height:88.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b12c7.jpg" style="position:absolute;left:8.5%;top:6.9%;width:87.1%;height:88.7%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+        <section id="a1b13" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame"><video style="position:absolute;left:61.1%;top:4.4%;width:27.8%;height:92.1%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:8px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b13c1_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b13c1.mp4"></video><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#ffffff;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">PLAYABLE</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#ffffff;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A variety of playable mini-games created for different game studios.
+Each project was developed end to end, from concept and game mechanics to final execution.
+I created the visual assets, animations, 3D elements, VFX and SFX, as well as the code and playable implementation.
+The focus was on creating simple, engaging interactions that communicate the game quickly and clearly.
+</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#ffffff;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created using Claude Code, Comfy UI, Photoshop, Blender and Illustrator</div></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:59.8%;top:3.3%;width:28.8%;height:93.3%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:8px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b13c3_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b13c3.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:60.5%;top:3.3%;width:28.1%;height:92.6%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:8px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b13c2_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b13c2.mp4"></video></div>
+                    </div>
+            </section>
+
+            <section id="a1b4" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:3;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">HERO WORSHIP</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This turn based combat game concept details the character design and animation centred around unconventional warfare. Offering a humanistic take on daily situations, the game replaces physical violence with mental debates and social power games. Utilising a distinct cel-shaded 2D aesthetic, the visual direction draws heavily from personal experience in the fashion industry, bringing functional styling to the garments. The result is a unique integration of high-fashion sensibilities with classic gaming aesthetics.</div><img src="https://daniellesasi.github.io/Sett/a1b4c37.jpg" style="position:absolute;left:34.8%;top:0.0%;width:65.6%;height:101.6%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in Blender, CLO3d and AfterEffect </div></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:52.7%;top:51.2%;width:52.3%;height:52.5%;transform:rotate(0deg);z-index:3;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c2_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c2.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b4c3.jpg" style="position:absolute;left:0.0%;top:50.9%;width:53.4%;height:51.8%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:0.0%;top:0.0%;width:53.7%;height:51.7%;transform:rotate(0deg);z-index:4;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c4_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c4.mp4"></video><video style="position:absolute;left:53.2%;top:0.0%;width:46.9%;height:51.6%;transform:rotate(0deg);z-index:4;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c5_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c5.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:51.1%;top:51.7%;width:49.1%;height:48.7%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c33_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c33.mp4"></video><video style="position:absolute;left:51.3%;top:0.0%;width:48.9%;height:52.0%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c34_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c34.mp4"></video><video style="position:absolute;left:0.0%;top:51.6%;width:51.3%;height:48.6%;transform:rotate(0deg);z-index:3;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c35_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c35.mp4"></video><video style="position:absolute;left:0.0%;top:0.0%;width:51.3%;height:51.8%;transform:rotate(0deg);z-index:4;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c36_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c36.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:9.4%;top:2.6%;width:88.3%;height:94.2%;transform:rotate(0deg);z-index:2;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c25_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c25.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:9.4%;top:2.5%;width:89.2%;height:95.5%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c28_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c28.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:9.3%;top:3.1%;width:89.5%;height:94.0%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c32_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c32.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:9.1%;top:3.2%;width:89.4%;height:93.9%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c26_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c26.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:0.0%;top:0.0%;width:38.8%;height:100.7%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c6_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c6.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b4c8.jpg" style="position:absolute;left:40.3%;top:0.0%;width:60.4%;height:104.0%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:0.0%;top:0.0%;width:48.8%;height:103.0%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c13_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c13.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b4c12.jpg" style="position:absolute;left:59.7%;top:0.0%;width:30.4%;height:102.5%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:35.3%;top:-21.2%;width:64.3%;height:132.2%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b4c15_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b4c15.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b4c17.jpg" style="position:absolute;left:6.4%;top:0.0%;width:33.6%;height:100.3%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b4c38.jpg" style="position:absolute;left:6.3%;top:12.2%;width:92.5%;height:76.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+
+            <section id="a1b2" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:61.2%;top:3.0%;width:27.7%;height:95.2%;transform:rotate(0deg);z-index:2;object-fit:cover;border-radius:34px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c13_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c13.mp4"></video><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:4;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">PHYSICAL</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in UE5 and Blender</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:5;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This mobile runner developed as an educational tribute to human biology, this mobile runner prototype takes players on a visceral, miniaturized journey through the body. The visual direction draws conceptual inspiration from the classic animation Once Upon a Time... Life, combining 1980s airbrush aesthetics with a thorough study of microscopic organ anatomy. The introductory level, "The Tongue," introduces the core gameplay loop: players must navigate a textured, organic landscape, evading sharp hazards and gathering essential nutrients before transitioning into the throat sequence.</div></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:0.0%;top:0.0%;width:47.1%;height:102.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c16_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c16.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b2c17.jpg" style="position:absolute;left:50.6%;top:11.1%;width:40.8%;height:74.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b2c18.jpg" style="position:absolute;left:4.5%;top:16.1%;width:46.4%;height:64.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:54.0%;top:0.0%;width:48.4%;height:107.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c19_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c19.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:0.0%;top:0.0%;width:100.5%;height:103.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c2_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c2.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:50.0%;top:0.0%;width:52.7%;height:131.7%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c5_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c5.mp4"></video><video style="position:absolute;left:0.0%;top:0.0%;width:50.7%;height:117.4%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c6_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c6.mp4"></video></div>
+                    <div class="canvas-frame draft"><video style="position:absolute;left:0.0%;top:0.0%;width:50.1%;height:101.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c3_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c3.mp4"></video><video style="position:absolute;left:49.8%;top:0.0%;width:51.1%;height:100.6%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b2c4_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b2c4.mp4"></video></div>
+                    </div>
+            </section>
+
+            <section id="a1b1" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:33.1%;top:10.7%;width:64.0%;height:76.4%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c1_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c1.mp4"></video><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">WELCOME TO THE MACHINE</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This 3D puzzle adventure game concept utilizes a surrealist art direction to explore themes of institutional conformity and urban isolation. The narrative follows an anomalous protagonist attempting to break free from the oppressive, cyclical routines of a monolithic city system. Players must solve puzzles to navigate through the game. The concept art establishes a clear visual trajectory, transitioning from the vibrant, chaotic isolation of neon cityscapes into the overexposed, sterile, and fragmented architecture of the corporate sector.
+</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in UE5, Blender, CLO3d and Substance</div></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:0.0%;top:0.0%;width:100.3%;height:101.2%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c15_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c15.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b1c17.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.9%;height:102.3%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b1c5.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.0%;height:100.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:6.0%;top:0.0%;width:47.9%;height:101.5%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c13_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c13.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:54.1%;top:0.0%;width:47.0%;height:101.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c7_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c7.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b1c19.jpg" style="position:absolute;left:0.0%;top:0.0%;width:54.5%;height:103.8%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:0.0%;top:0.0%;width:100.4%;height:100.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c14_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c14.mp4"></video></div>
+                    <div class="canvas-frame draft"><video style="position:absolute;left:0.0%;top:0.0%;width:42.9%;height:100.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c16_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c16.mp4"></video><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">ADVENTURE PUZZLE GAME CONCEPT
+</div></div>
+                    <div class="canvas-frame draft"><video style="position:absolute;left:0.0%;top:0.0%;width:100.8%;height:101.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b1c18_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b1c18.mp4"></video></div>
+                    <div class="canvas-frame bg-white draft"><img src="https://daniellesasi.github.io/Sett/a1b1c11.jpg" style="position:absolute;left:63.5%;top:4.2%;width:35.5%;height:90.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b1c12.jpg" style="position:absolute;left:5.0%;top:0.0%;width:34.4%;height:111.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b1c10.jpg" style="position:absolute;left:42.0%;top:0.1%;width:24.2%;height:102.3%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+            
+            <section id="a1b7" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b7c23.jpg" style="position:absolute;left:40.1%;top:10.0%;width:53.8%;height:82.2%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:4;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This section explores the iterative process of environment and character design, showcasing concepts brought to life across multiple mediums. The character drafts demonstrate the exploration of form, movement, and 3D rigging, while the environmental concepts are designed to establish a narrative mood. By blending traditional 2D line work with 3D wireframes and textured renders, these drafts illustrate a pipeline from initial ideas to execution. </div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in Photoshop, Procreate, Blender and CLO3D </div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:5;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">CHARACTERS</div></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:59.4%;top:0.0%;width:41.9%;height:100.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c18_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c18.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b7c19.png" style="position:absolute;left:37.8%;top:4.7%;width:34.8%;height:87.1%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b7c20.png" style="position:absolute;left:12.3%;top:24.0%;width:27.8%;height:70.6%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b7c12.jpg" style="position:absolute;left:27.5%;top:14.5%;width:70.4%;height:71.9%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b7c15.jpg" style="position:absolute;left:3.5%;top:7.8%;width:27.5%;height:81.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b7c22.jpg" style="position:absolute;left:5.8%;top:0.0%;width:89.6%;height:100.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:52.9%;top:7.0%;width:35.4%;height:87.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c16_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c16.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b7c17.jpg" style="position:absolute;left:10.6%;top:4.2%;width:39.2%;height:91.6%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white draft"><img src="https://daniellesasi.github.io/Sett/a1b7c6.jpg" style="position:absolute;left:76.7%;top:2.2%;width:20.0%;height:52.5%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b7c7.jpg" style="position:absolute;left:54.4%;top:38.6%;width:25.9%;height:50.3%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:0.0%;top:0.0%;width:44.4%;height:103.6%;transform:rotate(0deg);z-index:3;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c5_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c5.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:6.4%;top:0.0%;width:41.0%;height:100.9%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c3_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c3.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b7c4.png" style="position:absolute;left:55.4%;top:10.2%;width:32.7%;height:80.2%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:0.0%;top:0.0%;width:100.8%;height:100.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c8_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c8.mp4"></video><video style="position:absolute;left:0.0%;top:0.0%;width:100.9%;height:101.2%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c9_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c9.mp4"></video></div>
+                    <div class="canvas-frame draft"><video style="position:absolute;left:0.0%;top:0.0%;width:100.4%;height:101.4%;transform:rotate(0deg);z-index:1;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b7c14_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b7c14.mp4"></video></div>
+                    </div>
+            </section>
+            <section id="a1b6" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:60.4%;top:3.3%;width:28.5%;height:93.0%;transform:rotate(0deg);z-index:2;object-fit:cover;border-radius:34px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b6c8_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b6c8.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b6c9.png" style="position:absolute;left:61.4%;top:6.1%;width:11.0%;height:5.0%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This platformer designed for both mobile and console platforms. The narrative follows a stranded main character who is trapped in an alien universe where he cannot naturally survive. To endure this hostile environment, the protagonist must navigate the world from within the safety of a protective bubble. The core gameplay loop consists of platforming missions focused on exploring levels to collect scattered parts of his crashed ship. Players must carefully manage their traversal and survival mechanics to fully rebuild the vessel and return home.</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:4;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">BUBBLE BOY</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:5;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in Blender and IllustratorText</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b6c6.jpg" style="position:absolute;left:1.8%;top:15.0%;width:51.1%;height:64.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:54.1%;top:0.0%;width:46.0%;height:103.8%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b6c7_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b6c7.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b6c4.jpg" style="position:absolute;left:0.0%;top:0.0%;width:61.9%;height:100.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:60.2%;top:0.0%;width:40.2%;height:100.6%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b6c5_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b6c5.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:48.0%;top:0.0%;width:52.5%;height:101.8%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b6c3_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b6c3.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b6c10.jpg" style="position:absolute;left:13.7%;top:8.0%;width:83.9%;height:83.6%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b6c11.png" style="position:absolute;left:15.8%;top:11.3%;width:14.8%;height:6.7%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+
+            <section id="a1b5" class="project-section">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:61.5%;top:2.8%;width:27.5%;height:94.7%;transform:rotate(0deg);z-index:2;object-fit:cover;border-radius:32px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b5c16_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b5c16.mp4"></video><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:3;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">PERFECT WHITE</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:4;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This mobile arcade game is following a romantic story of the player looking for the perfect white gem. The core gameplay is a  quest to collect rare gems to craft the perfect jewelry for their loved one. Players navigate dynamic levels, utilizing a unique mechanic where the character swallows the collected gems for safe transport while actively dodging enemies and environmental obstacles. </div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:4;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created in Illustrator and programmed with Claude Code</div></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:23.9%;top:0.0%;width:53.3%;height:101.5%;transform:rotate(0deg);z-index:2;object-fit:cover;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b5c13_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b5c13.mp4"></video></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b5c4.jpg" style="position:absolute;left:5.1%;top:27.7%;width:27.2%;height:46.7%;transform:rotate(0deg);z-index:2;object-fit:cover;" loading="lazy" alt=""><img src="https://daniellesasi.github.io/Sett/a1b5c5.jpg" style="position:absolute;left:33.7%;top:27.3%;width:23.5%;height:50.1%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""><video style="position:absolute;left:62.7%;top:4.2%;width:26.0%;height:91.7%;transform:rotate(0deg);z-index:4;object-fit:cover;border-radius:46px;box-shadow:0 4px 18px rgba(255,255,255,0.22);" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b5c9_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b5c9.mp4"></video></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b5c21.jpg" style="position:absolute;left:23.3%;top:0.0%;width:66.5%;height:102.2%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><video style="position:absolute;left:10.9%;top:4.9%;width:26.0%;height:89.7%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:44px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b5c11_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b5c11.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b5c20.jpg" style="position:absolute;left:38.3%;top:12.1%;width:61.0%;height:80.2%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:11.1%;top:2.9%;width:26.1%;height:94.1%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:32px;box-shadow:0 4px 18px rgba(255,255,255,0.22);" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b5c14_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b5c14.mp4"></video><img src="https://daniellesasi.github.io/Sett/a1b5c19.jpg" style="position:absolute;left:48.4%;top:0.0%;width:47.5%;height:101.6%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+
+            <section id="a1b3" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:1;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">A metaverse fashion brand fusing the virtual and physical realms.
+
+The team is a collective of high-end fashion designers from the luxury industry and virtual experts. Using the latest game engines, we develop assets for both VR and AR, bringing the garments to life through cyber experiences. We immerse digital fashion in our day-to-day lives by creating a physical representation of the virtual PERSONA. From basic to met gala, our wardrobe is a blend of the physical and digital worlds, creating fantasy where the rules of physics do not apply.
+ </div><img src="https://daniellesasi.github.io/Sett/a1b3c7.webp" style="position:absolute;left:33.5%;top:8.0%;width:62.9%;height:83.3%;transform:rotate(0deg);z-index:3;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:3;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">PERSONA</div><img src="https://daniellesasi.github.io/Sett/a1b3c12.png" style="position:absolute;left:12.6%;top:4.4%;width:8.0%;height:11.5%;transform:rotate(0deg);z-index:4;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:91.0%;width:30.0%;height:7.5%;transform:rotate(0deg);z-index:5;font-size:0.75vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:italic;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This was created with CLO3D, Blender and Photoshop</div></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:11.1%;top:10.4%;width:80.0%;height:80.0%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b3c16_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b3c16.mp4"></video></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b3c8.webp" style="position:absolute;left:10.0%;top:10.0%;width:80.0%;height:80.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b3c11.jpg" style="position:absolute;left:10.0%;top:10.0%;width:80.0%;height:80.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b3c13.jpg" style="position:absolute;left:24.7%;top:4.0%;width:51.2%;height:91.2%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b3c17.jpg" style="position:absolute;left:3.8%;top:0.0%;width:96.4%;height:100.4%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:15.2%;top:7.9%;width:75.9%;height:83.9%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:8px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b3c2_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b3c2.mp4"></video></div>
+                    <div class="canvas-frame"><video style="position:absolute;left:15.2%;top:8.1%;width:76.2%;height:82.3%;transform:rotate(0deg);z-index:1;object-fit:cover;border-radius:10px;" autoplay loop muted playsinline><source src="https://daniellesasi.github.io/Sett/a1b3c15_mobile.mp4" media="(max-width: 768px), (max-height: 500px)"><source src="https://daniellesasi.github.io/Sett/a1b3c15.mp4"></video></div>
+                    </div>
+            </section>
+
+            <section id="a1b8" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c1.jpg" style="position:absolute;left:34.6%;top:0.0%;width:79.9%;height:101.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""><div class="txt-layer" data-locked="1" style="position:absolute;left:8.2%;top:5.5%;width:22.0%;height:30.7%;transform:rotate(0deg);z-index:2;font-size:2.5vw;font-family:'monospace',sans-serif;color:#000000;text-align:left;font-weight:bold;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">RTW FASHION</div><div class="txt-layer" data-locked="1" style="position:absolute;left:8.3%;top:32.0%;width:19.5%;height:56.4%;transform:rotate(0deg);z-index:3;font-size:1vw;font-family:'sans-serif',sans-serif;color:#000000;text-align:left;font-weight:normal;font-style:normal;word-break:break-word;display:flex;align-items:center;padding:4px 8px;box-sizing:border-box;">This section showcases my Ready-to-Wear design journey across industry-leading brands like JW Anderson, Raf Simons, and PANGAIA. It offers a glimpse into the physical fashion methodologies and conceptual ideas that now drive my approach to digital character and skin design. At the core of this work is my expertise in structural pattern cutting, which serves as the architectural foundation for apparel creation in both the physical and virtual realms.</div></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c2.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.7%;height:101.3%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c3.jpg" style="position:absolute;left:9.3%;top:0.0%;width:90.9%;height:101.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c4.jpg" style="position:absolute;left:16.0%;top:0.0%;width:74.2%;height:102.1%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame"><img src="https://daniellesasi.github.io/Sett/a1b8c5.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.7%;height:101.4%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c6.jpg" style="position:absolute;left:13.4%;top:0.0%;width:77.5%;height:101.6%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c7.jpg" style="position:absolute;left:11.6%;top:0.0%;width:80.7%;height:100.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c8.jpg" style="position:absolute;left:0.0%;top:0.0%;width:100.4%;height:102.9%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c9.jpg" style="position:absolute;left:0.0%;top:0.0%;width:103.1%;height:110.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c10.jpg" style="position:absolute;left:11.3%;top:0.0%;width:80.7%;height:102.0%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    <div class="canvas-frame bg-white"><img src="https://daniellesasi.github.io/Sett/a1b8c11.jpg" style="position:absolute;left:10.0%;top:0.0%;width:85.3%;height:102.8%;transform:rotate(0deg);z-index:1;object-fit:cover;" loading="lazy" alt=""></div>
+                    </div>
+            </section>
+
+                        <section id="a1b14" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b15" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b16" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b17" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b18" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b19" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b20" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b21" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b22" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b23" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+            <section id="a1b24" class="project-section draft">
+                <div class="horizontal-gallery" data-current-index="0">
+                    </div>
+            </section>
+
+</main>
+    </div>
+
+    <div id="port2" class="portfolio-wrapper about-wrapper">
+        <div class="about-scroll">
+            <div class="about-content">
+                <h1 class="about-title">DANIELLE SASI</h1>
+
+                <h2 class="about-h">About</h2>
+                <p>Gamer at heart and 3D Artist with over a decade of experience as a Creative Design Lead in the luxury fashion industry. After an accomplished career designing ready-to-wear, I have transitioned into the gaming space, applying my expertise in garment construction and creative concepts to virtual worlds.</p>
+                <p>My background includes serving as Creative Lead and Head of Design at PANGAIA, designing runway and commercial collections at JW Anderson, and co-founding the digital fashion brand PERSONA. Backed by formal coursework in Computer Science at Tel Aviv University and Unreal Engine training with Epic Games, I utilize Unreal Engine 5, Blender, Marvelous Designer, and CLO3D. I also integrate multiple AI platforms—composing custom models in ComfyUI for textures, modeling, and motion—to build highly detailed characters, garments, and interactive environments.</p>
+
+                <h2 class="about-h">Technical Skills</h2>
+                <p>3D &amp; Game Development — Unreal Engine 5, Blender, Marvelous Designer, CLO3D</p>
+                <p>2D &amp; Visualization — Adobe Photoshop, Adobe Illustrator</p>
+                <p>Motion &amp; Video — After Effects, Adobe Premiere Pro</p>
+                <p>AI &amp; Workflows — ComfyUI (custom nodes and model composition), generative AI for textures, creative ideation, and rapid prototyping</p>
+
+                <h2 class="about-h">Experience</h2>
+                <p>Creative Lead &amp; Head of Design | PANGAIA | 2020 – Present</p>
+                <p>Co-Founder | PERSONA</p>
+                <p>Designer (MRTW &amp; WRTW) | JW Anderson | 2016 – 2020</p>
+                <p>Design Experience | Raf Simons | 2015</p>
+
+                <h2 class="about-h">Education &amp; Training</h2>
+                <p>Unreal Engine Course | Epic Games</p>
+                <p>Computer Science Course | Tel Aviv University</p>
+                <p>BA in Fashion Design | Shenkar College of Engineering and Design | 2010 – 2014</p>
+                <p>Art Theory Coursework | Open University of Tel Aviv | 2009</p>
+
+                <h2 class="about-h">Contact</h2>
+                <p><a href="mailto:dnlssdnl@gmail.com">dnlssdnl@gmail.com</a></p>
+                <p><a href="tel:+447490569643">+44 (0) 7490569643</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="nav-hint"><div class="nh-chev"></div></div>
+
+    <div id="scroll-hint"><div class="sh-label">SCROLL</div><div class="sh-chev"></div></div>
+
+    <div id="rotate-prompt">
+        <div id="rotate-phone"></div>
+        <div id="rotate-label">ROTATE PHONE</div>
+    </div>
+    <div id="landscape-loader"></div>
+
+    <script>
+        document.fonts.load('1em Anton').then(() => {
+            document.querySelectorAll('.side-menu').forEach(m => m.style.opacity = '1');
+        });
+
+        // ── RESPONSIVE: 1920×1080 design canvas, scaled to fit viewport ──
+        const DESIGN_W = 1920, DESIGN_H = 1080;
+
+        function updateCanvasScale() {
+            const vp = window.visualViewport;
+            // Use visualViewport when available — it tracks the true visible area on iOS Safari,
+            // excluding the address bar and bottom toolbar that window.innerHeight includes.
+            const w = vp ? vp.width  : window.innerWidth;
+            const h = vp ? vp.height : window.innerHeight;
+            const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+            document.documentElement.style.setProperty('--canvas-scale', scale.toFixed(4));
+        }
+        updateCanvasScale();
+        // Recompute scale on every event that can change the viewport on mobile
+        window.addEventListener('resize', updateCanvasScale);
+        window.addEventListener('orientationchange', updateCanvasScale);
+        window.addEventListener('load', updateCanvasScale);  // after layout settles
+        if (window.visualViewport) {
+            // visualViewport tracks the *visible* part of the viewport (handles iOS address bar collapse)
+            window.visualViewport.addEventListener('resize', updateCanvasScale);
+        }
+        // Re-check after a short delay to catch cases where initial values were stale
+        setTimeout(updateCanvasScale, 200);
+        setTimeout(updateCanvasScale, 800);
+
+        // Wrap each canvas-frame's content in a .canvas-inner (the design canvas)
+        document.querySelectorAll('.canvas-frame').forEach(frame => {
+            if (frame.querySelector(':scope > .canvas-inner')) return;
+            const inner = document.createElement('div');
+            inner.className = 'canvas-inner';
+            while (frame.firstChild) inner.appendChild(frame.firstChild);
+            frame.appendChild(inner);
+        });
+
+        // Convert inline font-size:Xvw → font-size:Ypx (Y = X × DESIGN_W/100)
+        // So text scales with the design canvas instead of the raw viewport width.
+        document.querySelectorAll('.txt-layer').forEach(el => {
+            const style = el.getAttribute('style') || '';
+            const fixed = style.replace(/font-size:\s*([\d.]+)vw/g, (_, v) =>
+                `font-size:${(parseFloat(v) * DESIGN_W / 100).toFixed(1)}px`);
+            if (fixed !== style) el.setAttribute('style', fixed);
+        });
+
+        // ── NAV COLOR ────────────────────────────────────────────────────────
+        const navHint = document.getElementById('nav-hint');
+        const navHintChev = navHint && navHint.querySelector('.nh-chev');
+
+        function setNavColor(bright) {
+            document.querySelectorAll('.side-menu a').forEach(a => a.style.color = bright ? '#000' : '#fff');
+            document.querySelectorAll('.circle-btn').forEach(b => b.style.backgroundColor = bright ? '#000' : '#fff');
+            if (navHintChev) navHintChev.style.borderColor = bright ? '#000' : '#fff';
+            document.getElementById('scroll-hint').classList.toggle('on-white', bright);
+            // Extend slide background into safe-area insets (notch/home indicator zone on phones)
+            document.body.style.backgroundColor = bright ? '#fff' : '#000';
+        }
+
+        // ── VIDEO + IMAGE LOADING ───────────────────────────────────────────
+        // Each canvas-frame stays hidden behind a spinner until ALL its media (videos + images) is
+        // fully loaded — no more half-rendered slides flickering as data trickles in.
+
+        const firstActiveFrame = document.querySelector('.portfolio-wrapper.active .project-section:not(.draft) .canvas-frame:not(.draft)');
+
+        // Set up every video for safe muted autoplay; default to preload=none for non-first to save bandwidth.
+        // NOTE: we deliberately KEEP the `autoplay` attribute on every video. On mobile (iOS Low Power
+        // Mode / Data Saver in particular) the browser's native muted-autoplay engine is far more
+        // reliable than a scripted .play(); preload=none still prevents eager downloads.
+        document.querySelectorAll('.canvas-frame video').forEach(v => {
+            v.muted = true;
+            v.playsInline = true;
+            v.loop = true;
+            v.autoplay = true;
+            v.setAttribute('autoplay', '');
+            v.setAttribute('playsinline', '');
+            v.setAttribute('webkit-playsinline', '');
+            const isFirstFrame = firstActiveFrame && firstActiveFrame.contains(v);
+            v.preload = isFirstFrame ? 'auto' : 'none';
+        });
+
+        // Add a spinner element to every frame (CSS keeps content hidden until .ready is added)
+        document.querySelectorAll('.project-section:not(.draft) .canvas-frame:not(.draft)').forEach(f => {
+            if (!f.querySelector('.frame-loader')) {
+                const loader = document.createElement('div');
+                loader.className = 'frame-loader';
+                f.appendChild(loader);
+            }
+        });
+
+        // Returns a promise that resolves when every img/video in the frame is fully loaded.
+        // Triggers actual download for videos with preload=none by upgrading to auto and calling load().
+        function readyFrame(frame) {
+            if (!frame) return Promise.resolve();
+            if (frame.dataset.ready === '1') return Promise.resolve();
+            const media = Array.from(frame.querySelectorAll('img, video'));
+            if (!media.length) {
+                frame.dataset.ready = '1';
+                frame.classList.add('ready');
+                return Promise.resolve();
+            }
+            const promises = media.map(el => new Promise(resolve => {
+                if (el.tagName === 'IMG') {
+                    if (el.complete && el.naturalWidth > 0) return resolve();
+                    el.addEventListener('load',  resolve, { once: true });
+                    el.addEventListener('error', resolve, { once: true });
+                } else {
+                    // VIDEO — upgrade preload, force load, wait for canplay
+                    el.muted = true;
+                    el.playsInline = true;
+                    if (el.preload !== 'auto') {
+                        el.preload = 'auto';
+                        try { el.load(); } catch (_) {}
+                    }
+                    if (el.readyState >= 3) return resolve();
+                    el.addEventListener('canplay',     resolve, { once: true });
+                    el.addEventListener('loadeddata',  resolve, { once: true });
+                    el.addEventListener('error',       resolve, { once: true });
+                }
+                // Per-element safety so a single broken file can't block the whole frame
+                setTimeout(resolve, 8000);
+            }));
+            return Promise.all(promises).then(() => {
+                frame.dataset.ready = '1';
+                frame.classList.add('ready');
+                frame.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+            });
+        }
+
+        // Reveal a frame: ensures it's ready before showing it. Also pre-warms next/prev for instant nav.
+        function showFrameReady(frame) {
+            return readyFrame(frame).then(() => {
+                // Pause videos in other frames to save resources
+                document.querySelectorAll('.canvas-frame[data-ready="1"]').forEach(f => {
+                    if (f !== frame) f.querySelectorAll('video').forEach(v => v.pause());
+                });
+                frame.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+            });
+        }
+
+        // Section-level lazy: when a section approaches the viewport, ready its first frame.
+        // When it leaves, pause its videos.
+        const sectionLoader = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const first = entry.target.querySelector('.canvas-frame:not(.draft)');
+                    if (first) readyFrame(first);
+                } else {
+                    entry.target.querySelectorAll('video').forEach(v => v.pause());
+                }
+            });
+        }, { rootMargin: '100% 0px 100% 0px', threshold: 0 });
+
+        document.querySelectorAll('.project-section:not(.draft)').forEach(s => sectionLoader.observe(s));
+
+        // First-interaction autoplay unlock fallback (iOS Low Power Mode / Data Saver etc.)
+        // Any user gesture satisfies the autoplay policy — use it to kick every ready video AND
+        // to force-ready + play the section currently in view, so a single touch anywhere works.
+        const unlockEvents = ['pointerdown', 'click', 'touchstart', 'touchend', 'keydown', 'scroll'];
+        let autoplayUnlocked = false;
+        function unlockAutoplay() {
+            document.querySelectorAll('.canvas-frame[data-ready="1"] video').forEach(v => {
+                v.muted = true; v.playsInline = true;
+                if (v.paused) v.play().catch(() => {});
+            });
+            // Also force the section in view to load + play even if it wasn't ready yet.
+            document.querySelectorAll('.project-section:not(.draft)').forEach(s => {
+                const r = s.getBoundingClientRect();
+                if (r.top < window.innerHeight && r.bottom > 0) {
+                    const f = s.querySelector('.canvas-frame:not(.draft)');
+                    if (f) readyFrame(f).then(() => f.querySelectorAll('video').forEach(v => v.play().catch(() => {})));
+                }
+            });
+            if (autoplayUnlocked) return;
+            autoplayUnlocked = true;
+            unlockEvents.forEach(ev => document.removeEventListener(ev, unlockAutoplay, true));
+        }
+        unlockEvents.forEach(ev => document.addEventListener(ev, unlockAutoplay, true));
+
+        // Resume playback when the tab/app becomes visible again (iOS suspends backgrounded video).
+        function resumeVisibleVideos() {
+            if (document.hidden) return;
+            document.querySelectorAll('.project-section:not(.draft)').forEach(s => {
+                const r = s.getBoundingClientRect();
+                if (r.top < window.innerHeight && r.bottom > 0) {
+                    s.querySelectorAll('.canvas-frame[data-ready="1"] video').forEach(v => {
+                        if (v.paused) v.play().catch(() => {});
+                    });
+                }
+            });
+        }
+        document.addEventListener('visibilitychange', resumeVisibleVideos);
+        window.addEventListener('pageshow', resumeVisibleVideos);
+
+        const scrollHint = document.getElementById('scroll-hint');
+        let scrollHintTimer = null;
+
+        function showScrollHint(rightArrowEl, rectOverride) {
+            clearTimeout(scrollHintTimer);
+            // Calculate offset: where the right arrow is relative to the hint's rest position
+            const restX = window.innerWidth / 2;
+            const restY = window.innerHeight - 72;
+            // Use rectOverride when the arrow is already hidden (display:none returns 0,0,0,0)
+            const rect = (rectOverride && rectOverride.width > 0) ? rectOverride
+                       : (rightArrowEl ? rightArrowEl.getBoundingClientRect() : null);
+            const ox = rect ? (rect.left + rect.width / 2) - restX : 0;
+            const oy = rect ? (rect.top  + rect.height / 2) - restY : 0;
+            scrollHint.style.setProperty('--ox', ox + 'px');
+            scrollHint.style.setProperty('--oy', oy + 'px');
+            scrollHint.classList.remove('flying-in', 'flying-out');
+            scrollHint.offsetWidth;
+            scrollHint.classList.add('flying-in');
+            scrollHintTimer = setTimeout(() => scrollHint.classList.remove('flying-in'), 3900);
+        }
+
+        function hideScrollHint(newRightArrowEl) {
+            clearTimeout(scrollHintTimer);
+            if (!scrollHint.classList.contains('flying-in')) return;
+            // Calculate offset: where the new right arrow is relative to the hint's rest position
+            const restX = window.innerWidth / 2;
+            const restY = window.innerHeight - 72;
+            const rect = newRightArrowEl ? newRightArrowEl.getBoundingClientRect() : null;
+            const tx = rect ? (rect.left + rect.width / 2) - restX : 0;
+            const ty = rect ? (rect.top  + rect.height / 2) - restY : 0;
+            scrollHint.style.setProperty('--tx', tx + 'px');
+            scrollHint.style.setProperty('--ty', ty + 'px');
+            scrollHint.classList.remove('flying-in');
+            scrollHint.offsetWidth;
+            scrollHint.classList.add('flying-out');
+            setTimeout(() => scrollHint.classList.remove('flying-out'), 650);
+        }
+
+        // ── INITIAL LOADER: hide only when the first frame is FULLY ready ──
+        const initialLoader = document.getElementById('initial-loader');
+        const startTime = Date.now();
+        const minVisible = 350;
+        let loaderHidden = false;
+        function hideInitialLoader() {
+            if (loaderHidden) return;
+            loaderHidden = true;
+            const elapsed = Date.now() - startTime;
+            const wait = Math.max(0, minVisible - elapsed);
+            setTimeout(() => initialLoader && initialLoader.classList.add('hidden'), wait);
+        }
+        // Wait for the entire first frame (every video can play, every image fully loaded), then hide loader
+        if (firstActiveFrame) {
+            readyFrame(firstActiveFrame).then(hideInitialLoader);
+        } else {
+            hideInitialLoader();
+        }
+        // Hard safety — never leave the overlay up for more than 5s even on poor connections
+        setTimeout(hideInitialLoader, 5000);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial nav color from first frame of first active section
+            const firstFrame = document.querySelector('.portfolio-wrapper.active .project-section:not(.draft) .canvas-frame:not(.draft)');
+            if (firstFrame) setNavColor(firstFrame.classList.contains('bg-white'));
+
+            document.querySelectorAll('.vertical-scroll-container').forEach(container => {
+                const sectionEls = Array.from(container.querySelectorAll('.project-section:not(.draft)'));
+                const navLinks = Array.from(container.closest('.portfolio-wrapper').querySelectorAll('.side-menu a'));
+
+                function setCurrentNav(idx) {
+                    navLinks.forEach((a, i) => a.classList.toggle('current', i === idx));
+                }
+                setCurrentNav(0);
+
+                // ── Per-section click-to-slide navigation ─────────────────
+                sectionEls.forEach(section => {
+                    const gallery = section.querySelector('.horizontal-gallery');
+                    if (!gallery) return;
+                    const frames = Array.from(gallery.querySelectorAll('.canvas-frame:not(.draft)'));
+                    if (!frames.length) return;
+                    let cur = 0;
+
+                    // Build side arrows
+                    const makeArrow = dir => {
+                        const el = document.createElement('div');
+                        el.className = `gallery-arrow ${dir}`;
+                        el.innerHTML = '<div class="arr"></div>';
+                        section.appendChild(el);
+                        return el;
+                    };
+                    const leftArr  = makeArrow('left');
+                    const rightArr = makeArrow('right');
+
+                    function updateArrows() {
+                        const bright = frames[cur]?.classList.contains('bg-white');
+                        [leftArr, rightArr].forEach(a => a.classList.toggle('on-white', bright));
+                        leftArr.classList.toggle('hidden', cur === 0);
+                        rightArr.classList.toggle('hidden', cur === frames.length - 1);
+                    }
+
+                    function goToFrame(i) {
+                        frames[cur]?.querySelectorAll('video').forEach(v => v.pause());
+                        cur = Math.max(0, Math.min(frames.length - 1, i));
+                        gallery.style.transform = `translateX(${-cur * 100}vw)`;
+                        readyFrame(frames[cur]).then(() => {
+                            frames[cur]?.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+                        });
+                        if (frames[cur + 1]) readyFrame(frames[cur + 1]);
+                        if (frames[cur - 1]) readyFrame(frames[cur - 1]);
+                        const bright = frames[cur]?.classList.contains('bg-white') ?? false;
+                        setNavColor(bright);
+                        // Capture right-arrow rect BEFORE updateArrows() hides it on the last frame
+                        const isLast = cur === frames.length - 1;
+                        const hintOriginRect = isLast ? rightArr.getBoundingClientRect() : null;
+                        updateArrows();
+                        if (isLast) showScrollHint(rightArr, hintOriginRect);
+                    }
+                    section._goToFrame = goToFrame;
+                    section._frameCount = frames.length;
+
+                    // Reset gallery to slide 0 (no animation) — called when user navigates away
+                    section._resetGallery = () => {
+                        if (cur === 0) return;
+                        cur = 0;
+                        gallery.classList.add('no-transition');
+                        gallery.style.transform = 'translateX(0)';
+                        requestAnimationFrame(() => gallery.classList.remove('no-transition'));
+                        updateArrows();
+                        // pause videos in non-first frames
+                        frames.forEach((f, i) => { if (i !== 0) f.querySelectorAll('video').forEach(v => v.pause()); });
+                    };
+
+                    updateArrows();
+
+                    section.addEventListener('click', e => {
+                        if (e.target.closest('a')) return;
+                        goToFrame(e.clientX < window.innerWidth / 2 ? cur - 1 : cur + 1);
+                    });
+                });
+
+                // ── Vertical scroll: update nav color, active number, reset other galleries ──
+                // scrollend fallback for older Android Chrome (< 114)
+                let scrollEndTimer = null;
+                container.addEventListener('scroll', () => {
+                    clearTimeout(scrollEndTimer);
+                    scrollEndTimer = setTimeout(() => container.dispatchEvent(new Event('scrollend')), 200);
+                });
+                container.addEventListener('scrollend', () => {
+                    clearTimeout(scrollEndTimer);
+                    const idx = Math.round(container.scrollTop / container.clientHeight);
+                    const sec = sectionEls[idx];
+                    if (!sec) return;
+                    const frame = sec.querySelector('.canvas-frame:not(.draft)');
+                    if (frame) {
+                        setNavColor(frame.classList.contains('bg-white'));
+                        readyFrame(frame).then(() => {
+                            frame.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+                        });
+                    }
+                    setCurrentNav(idx);
+                    const newRightArr = sec.querySelector('.gallery-arrow.right');
+                    hideScrollHint(newRightArr);
+                    // Reset every OTHER gallery to slide 0
+                    sectionEls.forEach((s, i) => { if (i !== idx && s._resetGallery) s._resetGallery(); });
+                });
+
+                // ── Wrap-around loop: scrolling past last → first; before first → last ──
+                const lastIdx = sectionEls.length - 1;
+                function tryLoop(direction) {
+                    const idx = Math.round(container.scrollTop / container.clientHeight);
+                    const tol = 8;
+                    if (direction > 0 && idx >= lastIdx && container.scrollTop >= sectionEls[lastIdx].offsetTop - tol) {
+                        container.scrollTo({ top: 0, behavior: 'smooth' });
+                        return true;
+                    }
+                    if (direction < 0 && idx <= 0 && container.scrollTop <= tol) {
+                        container.scrollTo({ top: sectionEls[lastIdx].offsetTop, behavior: 'smooth' });
+                        return true;
+                    }
+                    return false;
+                }
+                let wheelGate = 0;
+                container.addEventListener('wheel', e => {
+                    const now = Date.now();
+                    if (now - wheelGate < 700) return;
+                    if (Math.abs(e.deltaY) < 5) return;
+                    if (tryLoop(e.deltaY)) { e.preventDefault(); wheelGate = now; }
+                }, { passive: false });
+                let touchStartY = null;
+                container.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+                container.addEventListener('touchend', e => {
+                    if (touchStartY === null) return;
+                    const dy = e.changedTouches[0].clientY - touchStartY;
+                    touchStartY = null;
+                    if (Math.abs(dy) < 40) return;
+                    tryLoop(-dy);  // swipe up (dy<0) means scrolling down
+                }, { passive: true });
+
+                // ── Side-menu links → scroll to section ──────────────────
+                navLinks.forEach(link => {
+                    link.addEventListener('click', e => {
+                        e.preventDefault();
+                        const id = link.getAttribute('href').slice(1);
+                        const idx = sectionEls.findIndex(s => s.id === id);
+                        if (idx !== -1) container.scrollTo({ top: sectionEls[idx].offsetTop, behavior: 'smooth' });
+                    });
+                });
+
+                // ── FIRST-VISIT NAV HINT ──
+                // Lock scroll and show blinking arrow until user clicks the right side at least once.
+                // Runs once per browser; ?demo in URL forces it for testing.
+                const firstSec = sectionEls[0];
+                const forceDemo = window.location.search.indexOf('demo') !== -1;
+                const seen = localStorage.getItem('portfolio_seen_navhint');
+                if (firstSec && (forceDemo || !seen)) {
+                    const blockScroll = e => e.preventDefault();
+                    document.body.classList.add('scroll-locked');
+                    window.addEventListener('wheel',     blockScroll, { passive: false, capture: true });
+                    window.addEventListener('touchmove', blockScroll, { passive: false, capture: true });
+                    let done = false;
+                    const firstRightArr = firstSec.querySelector('.gallery-arrow.right');
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        document.body.classList.remove('scroll-locked');
+                        navHint.classList.remove('flying');
+                        navHint.style.opacity = '0';
+                        window.removeEventListener('wheel',     blockScroll, { capture: true });
+                        window.removeEventListener('touchmove', blockScroll, { capture: true });
+                        firstRightArr?.classList.remove('must-click');
+                        if (!forceDemo) localStorage.setItem('portfolio_seen_navhint', '1');
+                    };
+                    // Play the flying arrow animation to show where to click
+                    let pulsingStarted = false;
+                    setTimeout(() => {
+                        if (done) return;
+                        navHint.classList.remove('flying'); void navHint.offsetWidth;
+                        navHint.classList.add('flying');
+                        // After animation ends, make right arrow pulse and allow any click to unlock
+                        setTimeout(() => {
+                            if (done) return;
+                            firstRightArr?.classList.add('must-click');
+                            pulsingStarted = true;
+                        }, 2600);
+                    }, 700);
+                    // During animation: right-side click unlocks. Once pulsing: any click unlocks.
+                    firstSec.addEventListener('click', e => {
+                        if (done) return;
+                        if (pulsingStarted || e.clientX >= window.innerWidth / 2) finish();
+                    });
+                }
+            });
+        });
+
+        function switchPortfolio(targetId) {
+            document.querySelectorAll('.portfolio-wrapper').forEach(w => w.classList.remove('active'));
+            document.querySelectorAll('.circle-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+            document.getElementById('btn-' + targetId).classList.add('active');
+            scrollHint.classList.remove('flying-in', 'flying-out');
+            if (targetId === 'port2') {
+                setNavColor(true);
+            } else {
+                const first = document.querySelector(`#${targetId} .canvas-frame:not(.draft)`);
+                if (first) setNavColor(first.classList.contains('bg-white'));
+            }
+        }
+
+        // ── MOBILE ROTATE PROMPT ────────────────────────────────────────────
+        const loader = document.getElementById('landscape-loader');
+        let loaderTimer = null;
+
+        function isPortraitMobile() {
+            return window.innerWidth <= 768 && window.innerHeight > window.innerWidth;
+        }
+
+        function onOrientationChange() {
+            if (isPortraitMobile()) return; // going back to portrait — CSS handles it
+
+            // flipped to landscape: show black loader, then fade it out after 1.5s
+            if (loaderTimer) clearTimeout(loaderTimer);
+            loader.style.display = 'block';
+            loader.style.opacity = '1';
+            loaderTimer = setTimeout(() => {
+                loader.style.opacity = '0';
+                setTimeout(() => { loader.style.display = 'none'; }, 650);
+            }, 1500);
+        }
+
+        window.addEventListener('orientationchange', onOrientationChange);
+        window.addEventListener('resize', () => {
+            // handles browsers that fire resize instead of orientationchange
+            if (!isPortraitMobile() && loader.style.display !== 'block') {
+                onOrientationChange();
+            }
+        });
+    </script>
+
+
+
+    <script>
+      // GA4 section tracking — fires when each section enters/exits view
+      (function(){
+        if(typeof gtag !== 'function') return;
+        const timers = {};
+        const observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            const id = entry.target.id;
+            const nav = document.querySelector(`.side-menu a[href="#${id}"]`);
+            const label = nav ? `Section ${nav.textContent} (${id})` : id;
+            if(entry.isIntersecting){
+              timers[id] = performance.now();
+              gtag('event', 'section_view', { section_id: id, section_label: label });
+            } else if(timers[id]){
+              const secs = Math.round((performance.now() - timers[id]) / 1000);
+              if(secs >= 2) gtag('event', 'section_time_spent', { section_id: id, section_label: label, seconds: secs });
+              delete timers[id];
+            }
+          });
+        }, { threshold: 0.5 });
+
+        // Observe after page load so draft sections are excluded
+        window.addEventListener('load', () => {
+          document.querySelectorAll('.project-section:not(.draft)').forEach(s => observer.observe(s));
+        });
+      })();
+    </script>
+</body></html>
